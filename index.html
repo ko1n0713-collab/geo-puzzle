@@ -183,17 +183,35 @@
     display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
     width: 100%; max-width: 440px;
   }
-  #speed-select-wrap { display: flex; align-items: center; gap: 10px; font-size: 14px; color: #cdd8ea; }
-  #speed-select { display: flex; gap: 8px; }
-  #level-select button, #speed-select button {
+  #speed-select-wrap, #mode-select-wrap { display: flex; align-items: center; gap: 10px; font-size: 14px; color: #cdd8ea; }
+  #speed-select, #mode-select { display: flex; gap: 8px; }
+  #level-select button, #speed-select button, #mode-select button {
     font-size: 14px; padding: 10px 6px; border-radius: 10px;
     border: 2px solid transparent; background: #3d5378; color: #fff;
     box-shadow: none; font-weight: normal;
   }
-  #speed-select button { min-width: 80px; }
-  #level-select button.selected, #speed-select button.selected {
+  #speed-select button, #mode-select button { min-width: 80px; }
+  #level-select button.selected, #speed-select button.selected, #mode-select button.selected {
     border-color: #f5a623; background: #4a6494; font-weight: bold;
   }
+
+  /* ヒント: 落下中ブロックの正解相手を淡く光らせる */
+  .block.hint { animation: hintglow 1.1s ease-in-out infinite alternate; }
+  @keyframes hintglow {
+    from { box-shadow: inset 0 -3px 0 rgba(0,0,0,.18), 0 0 4px 1px rgba(255,224,102,.35); }
+    to   { box-shadow: inset 0 -3px 0 rgba(0,0,0,.18), 0 0 15px 5px rgba(255,224,102,.95); }
+  }
+
+  /* ===== おぼえたずかん ===== */
+  #zukan-overlay { justify-content: flex-start; overflow-y: auto; gap: 10px; padding-top: 26px; }
+  #zukan-overlay h1 { font-size: 22px; }
+  .zk-prefs { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
+  .zk-chip {
+    font-size: 10px; padding: 2px 7px; border-radius: 9px;
+    background: rgba(255,255,255,.13); color: #93a5bf;
+  }
+  .zk-chip.got { background: #2e7d32; color: #fff; font-weight: bold; }
+  .zk-dim { opacity: .45; }
 
   /* ===== リザルト画面(内容が多いのでスクロール可能に) ===== */
   #result-overlay { justify-content: flex-start; overflow-y: auto; gap: 12px; padding-top: 26px; }
@@ -307,9 +325,14 @@
   この表示のまま変わらないときは、ZIPを解凍(展開)して、<br>
   index.html・config.js・data.js を同じフォルダに置いてから開いてください。</p>
   <div id="level-select"></div>
+  <div id="mode-select-wrap"><span>モード</span><div id="mode-select"></div></div>
   <div id="speed-select-wrap"><span>はやさ</span><div id="speed-select"></div></div>
+  <p id="title-hiscore" style="font-size:13px;color:#ffd980;min-height:1.2em;margin:-6px 0"></p>
   <button id="start-btn">はじめる</button>
-  <button id="mapsym-btn" style="background:#46608f;color:#fff;box-shadow:0 4px 0 #2d3f61;font-size:15px;padding:10px 24px">🗺 地図記号ずかん</button>
+  <div style="display:flex;gap:10px">
+    <button id="mapsym-btn" style="background:#46608f;color:#fff;box-shadow:0 4px 0 #2d3f61;font-size:15px;padding:10px 20px">🗺 地図記号ずかん</button>
+    <button id="zukan-btn" style="background:#46608f;color:#fff;box-shadow:0 4px 0 #2d3f61;font-size:15px;padding:10px 20px">📖 おぼえたずかん</button>
+  </div>
   <p style="font-size:12px">そうさ: ドラッグで移動 / タップで回転 / 下にスワイプで落とす<br>
   キーボード: ←→移動 ↑回転 ↓はやく落とす スペースでいっきに落とす</p>
 </div>
@@ -318,20 +341,32 @@
 <div id="mapsym-overlay" class="overlay hidden">
   <h1>🗺 地図記号ずかん</h1>
   <div id="mapsym-grid"></div>
+  <p style="font-size:11px;color:#9fb0c8">参考: 国土地理院「地図記号一覧」</p>
   <button id="mapsym-close-btn">とじる</button>
+</div>
+
+<!-- おぼえたずかん(累計の学習記録。localStorage に保存される) -->
+<div id="zukan-overlay" class="overlay hidden">
+  <h1>📖 おぼえたずかん</h1>
+  <p id="zukan-progress" class="section-title"></p>
+  <div id="zukan-list" class="history-list" style="max-height:56vh"></div>
+  <button id="zukan-close-btn">とじる</button>
+  <button id="zukan-reset-btn" style="background:#5a3a3a;color:#fff;box-shadow:none;font-size:12px;padding:8px 18px">きろくをぜんぶ消す</button>
 </div>
 
 <!-- ポーズ画面 -->
 <div id="pause-overlay" class="overlay hidden">
   <h1>ちょっと休けい</h1>
   <button id="resume-btn">つづける</button>
+  <button id="end-btn" style="background:#46608f;color:#fff;box-shadow:0 4px 0 #2d3f61">おわってふりかえる</button>
   <button id="pause-title-btn" style="background:#46608f;color:#fff;box-shadow:0 4px 0 #2d3f61">さいしょにもどる</button>
 </div>
 
 <!-- ゲームオーバー → リザルト(残ったブロックのヒント + ふりかえり) -->
 <div id="result-overlay" class="overlay hidden">
-  <h1>ゲームオーバー</h1>
+  <h1 id="result-title">ゲームオーバー</h1>
   <p id="result-stats"></p>
+  <p id="result-hiscore" class="section-title"></p>
   <p class="section-title" id="leftover-title">💡 のこったブロック、こうすれば消せた!</p>
   <div id="leftover-list" class="history-list"></div>
   <p class="section-title">📖 きょうのふりかえり</p>
@@ -432,6 +467,21 @@ let lastFall = 0;         // 最後に1マス落ちた時刻
 let lockUntil = null;     // 接地中: この時刻になったら固定する
 let uidSeq = 0;
 
+// ── localStorage への保存/読み込み(壊れていても落ちないように) ──
+function loadStore(key, fallback) {
+  try {
+    const v = JSON.parse(localStorage.getItem(CONFIG.STORAGE_PREFIX + key));
+    return (v === null || v === undefined) ? fallback : v;
+  } catch (e) { return fallback; }
+}
+function saveStore(key, value) {
+  try { localStorage.setItem(CONFIG.STORAGE_PREFIX + key, JSON.stringify(value)); } catch (e) {}
+}
+
+// おぼえたずかん: 消去に成功した組み合わせの累計(ページを閉じても残る)
+// キーは「地形id:県id」、地図記号は「map:記号id」
+let zukan = loadStore("zukan", {});
+
 // ============================================================
 // データ検証: data.js を編集したときの書きまちがいをチェックする
 // ============================================================
@@ -485,7 +535,15 @@ function buildPools(lv) {
 // ============================================================
 const randomOf = arr => arr[Math.floor(Math.random() * arr.length)];
 
+// そのマスのブロックが「まだ組にできる」状態か(上下左右のどこかに空きがあるか)。
+// まわりを囲まれて埋まったブロックは、相手を出しても組にできないので対象から外す
+function hasEmptyNeighbor(r, c) {
+  return (r > 0 && !board[r - 1][c]) || (r < TOTAL_ROWS - 1 && !board[r + 1][c]) ||
+         (c > 0 && !board[r][c - 1]) || (c < COLS - 1 && !board[r][c + 1]);
+}
+
 // 盤面にあるブロックの「正解相手」になれるブロックをプールから集める
+// (置ける場所が残っているブロックだけを相手探しの対象にする)
 function partnerCandidates(kind) {
   const out = [];
   // 地図記号モード: 盤面にある逆側ブロックと同じ記号が相手
@@ -493,22 +551,22 @@ function partnerCandidates(kind) {
     const otherKind = kind === "feature" ? "pref" : "feature";
     const ids = new Set();
     for (const row of board) for (const b of row)
-      if (b && b.kind === otherKind) ids.add(b.data.id);
+      if (b && b.kind === otherKind && hasEmptyNeighbor(b.row, b.col)) ids.add(b.data.id);
     return pools.features.filter(s => ids.has(s.id));
   }
   if (kind === "feature") {
-    // 盤面の県ブロック → その県が正解に含まれる地形
+    // 盤面の(空きがある)県ブロック → その県が正解に含まれる地形
     const prefIds = new Set();
     for (const row of board) for (const b of row)
-      if (b && b.kind === "pref") prefIds.add(b.data.id);
+      if (b && b.kind === "pref" && hasEmptyNeighbor(b.row, b.col)) prefIds.add(b.data.id);
     if (prefIds.size === 0) return out;
     for (const f of pools.features)
       if (f.prefectures.some(pid => prefIds.has(pid))) out.push(f);
   } else {
-    // 盤面の地形ブロック → その正解の県
+    // 盤面の(空きがある)地形ブロック → その正解の県
     const prefIds = new Set();
     for (const row of board) for (const b of row)
-      if (b && b.kind === "feature")
+      if (b && b.kind === "feature" && hasEmptyNeighbor(b.row, b.col))
         for (const pid of b.data.prefectures) prefIds.add(pid);
     if (prefIds.size === 0) return out;
     for (const p of pools.prefs)
@@ -673,18 +731,20 @@ async function lockPiece() {
   board[piece.axis.row][piece.axis.col] = piece.axis;
   board[piece.sub.row][piece.sub.col] = piece.sub;
   piece = null;
+  updateHints();                        // 古いヒントの光を消す
   piecesPlaced++;                       // 置いた数を数える(速度の漸増に使う)
   // 重力 → 正解隣接の消去 → 連鎖(消えなくなるまで繰り返す)
   await resolveBoard();
-  spawnPiece();
+  await spawnPiece();
   busy = false;
   lastFall = performance.now();
 }
 
 // 今の落下速度: レベルの基準 × はやさ設定 × 漸増(置いた数に応じて速くなる)
+// 練習モードでは速くならない
 function currentSpeedMs() {
   const base = levelDef.speedMs * CONFIG.SPEED_OPTIONS[selectedSpeedIdx].mul;
-  const steps = Math.floor(piecesPlaced / CONFIG.SPEEDUP_EVERY_PIECES);
+  const steps = isPractice() ? 0 : Math.floor(piecesPlaced / CONFIG.SPEEDUP_EVERY_PIECES);
   return Math.max(CONFIG.MIN_SPEED_MS, base * Math.pow(CONFIG.SPEEDUP_FACTOR, steps));
 }
 
@@ -811,8 +871,12 @@ function queueFacts(edges) {
     if (seen.has(key)) continue;        // 同じ組み合わせは1回だけ
     seen.add(key);
     factQueue.push(e);
-    addFactHistory(e);                  // 履歴にも記録する
+    addFactHistory(e);                  // この回の履歴に記録
+    // おぼえたずかん(累計)にも記録
+    const zkey = pools.mode === "mapsym" ? "map:" + e.feature.id : key;
+    zukan[zkey] = (zukan[zkey] || 0) + 1;
   }
+  saveStore("zukan", zukan);
   if (!factTimer) nextFact();
 }
 
@@ -937,15 +1001,27 @@ function addLog(edges) {
 }
 
 // ── ピースのスポーン ──────────────────────────
-function spawnPiece() {
+// 練習モード用: いちばん下の行をまるごと消して詰みを回避する(得点・ずかんには入らない)
+async function clearBottomRow() {
+  const blocks = new Set();
+  for (let c = 0; c < COLS; c++)
+    if (board[TOTAL_ROWS - 1][c]) blocks.add(board[TOTAL_ROWS - 1][c]);
+  if (blocks.size === 0) return;
+  await animateClear(blocks);
+  await applyGravity();
+}
+
+async function spawnPiece() {
   const spawnCol = 2;                 // 左から3列目
   const [a, s] = nextPair;
   nextPair = makePair();
   renderNext();
-  // スポーン位置(軸=見える最上段, 相方=その上の見えない行)が埋まっていたらゲームオーバー
+  // スポーン位置(軸=見える最上段, 相方=その上の見えない行)が埋まっていたら:
+  // チャレンジ → ゲームオーバー / 練習 → 下の行を自動で消して続行
   if (!canPlace(HIDDEN, spawnCol, 0)) {
-    gameOver();
-    return;
+    if (!isPractice()) { gameOver(); return; }
+    let guard = 0;
+    while (!canPlace(HIDDEN, spawnCol, 0) && guard++ <= ROWS) await clearBottomRow();
   }
   piece = {
     axis: createBoardBlock(a, HIDDEN, spawnCol),
@@ -953,6 +1029,17 @@ function spawnPiece() {
     row: HIDDEN, col: spawnCol, dir: 0
   };
   lockUntil = null;
+  updateHints();                      // 新しいペアの正解相手を光らせる
+}
+
+// ── ヒント(設計書 5.4): 落下中ペアの正解相手になる盤面ブロックを淡く光らせる ──
+// レベルの hint 設定が true のとき、または練習モードのときに働く
+function updateHints() {
+  for (const el of boardEl.querySelectorAll(".block.hint")) el.classList.remove("hint");
+  if (!piece || !(levelDef.hint || isPractice())) return;
+  for (const row of board) for (const b of row)
+    if (b && (isCorrectCombo(piece.axis, b) || isCorrectCombo(piece.sub, b)))
+      b.el.classList.add("hint");
 }
 
 function renderNext() {
@@ -1042,6 +1129,83 @@ $("mapsym-btn").addEventListener("click", () => $("mapsym-overlay").classList.re
 $("mapsym-close-btn").addEventListener("click", () => $("mapsym-overlay").classList.add("hidden"));
 
 // ============================================================
+// おぼえたずかん(累計の学習記録。地形×県の集めた組み合わせを一覧表示)
+// ============================================================
+function renderZukan() {
+  const list = $("zukan-list");
+  list.innerHTML = "";
+  let got = 0, total = 0;
+  // 地形: 1行=1地形。集めた県は緑のチップ、未収集はうすいチップ
+  for (const t of GEO_DATA.featureTypes) {
+    for (const f of GEO_DATA.features.filter(x => x.type === t.id)) {
+      total += f.prefectures.length;
+      const item = document.createElement("div");
+      item.className = "history-item";
+      const sw = document.createElement("span");
+      sw.className = "hi-swatch";
+      sw.style.background = t.color;
+      sw.style.color = textColorFor(t.color);
+      sw.textContent = t.icon;
+      const body = document.createElement("div");
+      const main = document.createElement("div");
+      main.className = "hi-main";
+      main.textContent = f.name;
+      const chips = document.createElement("div");
+      chips.className = "zk-prefs";
+      let gotAny = false;
+      for (const pid of f.prefectures) {
+        const c = zukan[f.id + ":" + pid] || 0;
+        if (c > 0) { got++; gotAny = true; }
+        const chip = document.createElement("span");
+        chip.className = "zk-chip" + (c > 0 ? " got" : "");
+        chip.textContent = prefById.get(pid).name.replace(/[都府県]$/, "") + (c > 0 ? " ✓" : "");
+        chips.appendChild(chip);
+      }
+      if (!gotAny) item.classList.add("zk-dim");   // まだ1つも集めていない地形はうすく
+      body.append(main, chips);
+      item.append(sw, body);
+      list.appendChild(item);
+    }
+  }
+  // 地図記号: 集めた記号に✓
+  for (const s of (GEO_DATA.mapSymbols || [])) {
+    total++;
+    const c = zukan["map:" + s.id] || 0;
+    if (c > 0) got++;
+    const item = document.createElement("div");
+    item.className = "history-item" + (c > 0 ? "" : " zk-dim");
+    const sw = document.createElement("span");
+    sw.className = "hi-swatch";
+    sw.style.background = "#f7f5ef";
+    sw.innerHTML = symbolSvg(s);
+    const body = document.createElement("div");
+    const main = document.createElement("div");
+    main.className = "hi-main";
+    main.textContent = s.name;
+    const sub = document.createElement("div");
+    sub.className = "hi-sub";
+    sub.textContent = c > 0 ? `✓ ${c}回けした` : "まだ";
+    body.append(main, sub);
+    item.append(sw, body);
+    list.appendChild(item);
+  }
+  $("zukan-progress").textContent = `あつめた組み合わせ: ${got} / ${total}`;
+}
+
+$("zukan-btn").addEventListener("click", () => {
+  renderZukan();
+  $("zukan-overlay").classList.remove("hidden");
+});
+$("zukan-close-btn").addEventListener("click", () => $("zukan-overlay").classList.add("hidden"));
+$("zukan-reset-btn").addEventListener("click", () => {
+  if (confirm("ずかんのきろくをぜんぶ消しますか?(もとにもどせません)")) {
+    zukan = {};
+    saveStore("zukan", zukan);
+    renderZukan();
+  }
+});
+
+// ============================================================
 // ゲームの開始・リセット
 // ============================================================
 // タイトルで選ばれているレベル(1〜)。前回の選択を localStorage から復元する
@@ -1051,7 +1215,7 @@ function startGame() {
   const idx = Math.min(Math.max(selectedLevel, 1), CONFIG.LEVELS.length) - 1;
   levelDef = CONFIG.LEVELS[idx];
   pools = buildPools(levelDef);
-  $("level-name").textContent = (idx + 1) + " " + levelDef.name;
+  $("level-name").textContent = (idx + 1) + " " + levelDef.name + (isPractice() ? " 練習" : "");
   // 地図記号モードでは地形の色の凡例は関係ないので隠す
   $("legend-box").style.display = pools.mode === "mapsym" ? "none" : "";
   // 盤面のブロックだけ消す(連鎖ポップアップは残す)
@@ -1071,12 +1235,27 @@ function startGame() {
   lastFall = performance.now();
 }
 
-// ゲームオーバー → リザルト(残ったブロックのヒント + この回のふりかえり)
-function gameOver() {
+// ゲームオーバー/終了 → リザルト(残ったブロックのヒント + この回のふりかえり)
+function gameOver(title) {
   state = "gameover";
+  $("result-title").textContent = title || "ゲームオーバー";
   $("result-stats").innerHTML =
     `スコア <b style="font-size:24px">${score}</b><br>` +
     `さいだい ${maxChain} れんさ ・ けしたブロック ${blocksCleared} こ`;
+  // ハイスコア(チャレンジモードのみ、レベルごとに保存)
+  let hsLine = "";
+  if (!isPractice()) {
+    const hs = loadStore("hiscore", {});
+    const prev = hs[String(selectedLevel)] || 0;
+    if (score > prev) {
+      hs[String(selectedLevel)] = score;
+      saveStore("hiscore", hs);
+      hsLine = prev > 0 ? `🎉 ハイスコアこうしん!(これまで ${prev})` : "🎉 ハイスコアに登録!";
+    } else if (prev > 0) {
+      hsLine = `ハイスコア: ${prev}`;
+    }
+  }
+  $("result-hiscore").textContent = hsLine;
   const hintCount = renderLeftoverHints();
   $("leftover-title").style.display = hintCount ? "" : "none";
   $("leftover-list").style.display = hintCount ? "" : "none";
@@ -1177,6 +1356,7 @@ function buildLevelSelect() {
       box.querySelectorAll("button").forEach(b => b.classList.remove("selected"));
       btn.classList.add("selected");
       try { localStorage.setItem(CONFIG.STORAGE_PREFIX + "level", String(selectedLevel)); } catch (e) {}
+      updateTitleHiscore();
     });
     box.appendChild(btn);
   });
@@ -1202,6 +1382,36 @@ function buildSpeedSelect() {
   });
 }
 
+// ── タイトルの「モード」設定(チャレンジ / れんしゅう) ──
+// れんしゅう: ゲームオーバーなし(詰まったら下の行が自動で消える)・速くならない・ヒントつき
+const MODES = ["チャレンジ", "れんしゅう"];
+let selectedMode = 0;
+const isPractice = () => selectedMode === 1;
+
+function buildModeSelect() {
+  const box = $("mode-select");
+  box.innerHTML = "";
+  MODES.forEach((label, i) => {
+    const btn = document.createElement("button");
+    btn.textContent = label;
+    if (i === selectedMode) btn.classList.add("selected");
+    btn.addEventListener("click", () => {
+      selectedMode = i;
+      box.querySelectorAll("button").forEach(b => b.classList.remove("selected"));
+      btn.classList.add("selected");
+      saveStore("mode", i);
+    });
+    box.appendChild(btn);
+  });
+}
+
+// タイトル画面に選択中レベルのハイスコアを表示する
+function updateTitleHiscore() {
+  const hs = loadStore("hiscore", {});
+  const v = hs[String(selectedLevel)];
+  $("title-hiscore").textContent = v ? `Lv${selectedLevel} のハイスコア: ${v}` : "";
+}
+
 // ============================================================
 // 入力: キーボード
 // ============================================================
@@ -1216,6 +1426,8 @@ document.addEventListener("keydown", e => {
     case " ": hardDrop(); break;
     case "Escape":
       if (!$("history-overlay").classList.contains("hidden")) closeHistory();
+      else if (!$("zukan-overlay").classList.contains("hidden")) $("zukan-overlay").classList.add("hidden");
+      else if (!$("mapsym-overlay").classList.contains("hidden")) $("mapsym-overlay").classList.add("hidden");
       else togglePause();
       break;
     default: return;
@@ -1292,10 +1504,16 @@ function togglePause() {
 }
 $("pause-btn").addEventListener("click", togglePause);
 $("resume-btn").addEventListener("click", togglePause);
+// ポーズから「おわってふりかえる」= 終了ボタン(設計書 3.7)。リザルトを表示する
+$("end-btn").addEventListener("click", () => {
+  $("pause-overlay").classList.add("hidden");
+  gameOver(isPractice() ? "れんしゅうおわり" : "ここまでのきろく");
+});
 // ポーズから「さいしょにもどる」= 今の回をやめてタイトルへ
 $("pause-title-btn").addEventListener("click", () => {
   $("pause-overlay").classList.add("hidden");
   state = "title";
+  updateTitleHiscore();
   $("title-overlay").classList.remove("hidden");
 });
 
@@ -1330,6 +1548,7 @@ $("retry-btn").addEventListener("click", () => {
 $("to-title-btn").addEventListener("click", () => {
   $("result-overlay").classList.add("hidden");
   state = "title";
+  updateTitleHiscore();
   $("title-overlay").classList.remove("hidden");
 });
 
@@ -1346,18 +1565,22 @@ window.addEventListener("orientationchange", () => setTimeout(layout, 100));
     $("data-error-overlay").classList.remove("hidden");
     return;
   }
-  // 前回選んだレベル・はやさを復元(なければ config の既定値)
+  // 前回選んだレベル・はやさ・モードを復元(なければ config の既定値)
   try {
     const saved = parseInt(localStorage.getItem(CONFIG.STORAGE_PREFIX + "level"), 10);
     if (saved >= 1 && saved <= CONFIG.LEVELS.length) selectedLevel = saved;
     const savedSpeed = parseInt(localStorage.getItem(CONFIG.STORAGE_PREFIX + "speed"), 10);
     if (savedSpeed >= 0 && savedSpeed < CONFIG.SPEED_OPTIONS.length) selectedSpeedIdx = savedSpeed;
   } catch (e) {}
+  const savedMode = loadStore("mode", 0);
+  if (savedMode === 0 || savedMode === 1) selectedMode = savedMode;
   selectedLevel = Math.min(Math.max(selectedLevel, 1), CONFIG.LEVELS.length);
   selectedSpeedIdx = Math.min(Math.max(selectedSpeedIdx, 0), CONFIG.SPEED_OPTIONS.length - 1);
-  $("title-level").textContent = "レベルとはやさをえらんで「はじめる」を押してね";
+  $("title-level").textContent = "レベルとモードをえらんで「はじめる」を押してね";
   buildLevelSelect();
+  buildModeSelect();
   buildSpeedSelect();
+  updateTitleHiscore();
   document.documentElement.style.setProperty("--fall-ms", CONFIG.FALL_ANIM_MS + "ms");
   document.documentElement.style.setProperty("--clear-ms", CONFIG.CLEAR_ANIM_MS + "ms");
   layout();

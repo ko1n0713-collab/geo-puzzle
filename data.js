@@ -280,7 +280,8 @@ const GEO_DATA = {
   ],
 
   // ── 地図記号ずかん ─────────────────────────
-  // タイトル画面の「地図記号ずかん」に表示される。
+  // タイトル画面の「地図記号ずかん」とレベル「地図記号」の出題に使われる。
+  // 参考: 国土地理院「地図記号一覧」 https://www.gsi.go.jp/kohokocho/map-sign-tizukigou-2022-itiran.html
   // name / kana / note(意味・由来)は自由に編集してよい。
   // svg は記号の絵(編集はむずかしいので、直したいときは依頼すること)。
   mapSymbols: [
@@ -294,13 +295,13 @@ const GEO_DATA = {
       note: "りんごなどの果物の実の形",
       svg: "<circle cx='24' cy='24' r='11'/>" },
     { id: "chabatake", name: "茶畑", kana: "ちゃばたけ",
-      note: "茶の実を半分に切った形",
+      note: "茶の実を半分に切った中の形",
       svg: "<circle cx='24' cy='14' r='3.5' fill='#223' stroke='none'/><circle cx='15' cy='31' r='3.5' fill='#223' stroke='none'/><circle cx='33' cy='31' r='3.5' fill='#223' stroke='none'/>" },
     { id: "shinyoju", name: "針葉樹林", kana: "しんようじゅりん",
-      note: "まつなどの針葉樹の形",
-      svg: "<path d='M24 8L13 30h22z'/><path d='M24 30v10'/>" },
+      note: "すぎなどのとがった木を横から見た形",
+      svg: "<path d='M24 7v33M24 7L13 28M24 7l11 21'/>" },
     { id: "koyoju", name: "広葉樹林", kana: "こうようじゅりん",
-      note: "丸い葉の広葉樹の形",
+      note: "葉の広い丸い木を横から見た形",
       svg: "<circle cx='24' cy='19' r='11'/><path d='M24 30v10'/>" },
     { id: "shogakko", name: "小・中学校", kana: "しょう・ちゅうがっこう",
       note: "「文」の字",
@@ -345,8 +346,8 @@ const GEO_DATA = {
       note: "柱のある建物の形",
       svg: "<path d='M24 8L8 17h32zM12 17v14M24 17v14M36 17v14M8 34h32'/>" },
     { id: "todai", name: "灯台", kana: "とうだい",
-      note: "光が四方に出るようす(上から見た形)",
-      svg: "<circle cx='24' cy='28' r='3.5' fill='#223' stroke='none'/><path d='M24 21V8M16 23l-9-8M32 23l9-8M13 28H4M35 28h9'/>" }
+      note: "灯台を上から見た形と、四方八方に広がる光のようす",
+      svg: "<circle cx='24' cy='24' r='3.5' fill='#223' stroke='none'/><path d='M24 17V6M24 31v11M17 24H6M31 24h11M19 19l-6-6M29 19l6-6M19 29l-6 6M29 29l6 6'/>" }
   ]
 };
 

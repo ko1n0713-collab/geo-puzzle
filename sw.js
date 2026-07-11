@@ -4,7 +4,7 @@
 // ★更新を公開するときは、下の CACHE_VERSION を必ず1つ上げること(上げないと iPad に反映されない)
 // ============================================================
 
-const CACHE_VERSION = "v2";  // ← 更新のたびに v3, v4, ... と上げる
+const CACHE_VERSION = "v3";  // ← 更新のたびに v4, v5, ... と上げる
 const CACHE_NAME = "geopuzzle-" + CACHE_VERSION;
 
 // 保存するファイルの一覧(ファイルを増やしたらここにも足す)
