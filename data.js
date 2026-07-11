@@ -292,17 +292,17 @@ const GEO_DATA = {
       note: "植物のふた葉の形",
       svg: "<path d='M13 11l11 26 11-26'/>" },
     { id: "kajuen", name: "果樹園", kana: "かじゅえん",
-      note: "りんごなどの果物の実の形",
-      svg: "<circle cx='24' cy='24' r='11'/>" },
+      note: "りんごなどの果物の実を横から見た形",
+      svg: "<circle cx='24' cy='16' r='8'/><path d='M24 24v17'/>" },
     { id: "chabatake", name: "茶畑", kana: "ちゃばたけ",
       note: "茶の実を半分に切った中の形",
       svg: "<circle cx='24' cy='14' r='3.5' fill='#223' stroke='none'/><circle cx='15' cy='31' r='3.5' fill='#223' stroke='none'/><circle cx='33' cy='31' r='3.5' fill='#223' stroke='none'/>" },
     { id: "shinyoju", name: "針葉樹林", kana: "しんようじゅりん",
-      note: "すぎなどのとがった木を横から見た形",
-      svg: "<path d='M24 7v33M24 7L13 28M24 7l11 21'/>" },
+      note: "先のとがった木(すぎ・まつ)を横から見た形",
+      svg: "<path d='M10 31L24 9l14 22M24 31v10'/>" },
     { id: "koyoju", name: "広葉樹林", kana: "こうようじゅりん",
       note: "葉の広い丸い木を横から見た形",
-      svg: "<circle cx='24' cy='19' r='11'/><path d='M24 30v10'/>" },
+      svg: "<circle cx='24' cy='18' r='11'/><path d='M24 29v12'/>" },
     { id: "shogakko", name: "小・中学校", kana: "しょう・ちゅうがっこう",
       note: "「文」の字",
       svg: "<text x='24' y='35' font-size='32' text-anchor='middle' fill='#223' stroke='none' font-weight='bold'>文</text>" },
@@ -313,8 +313,8 @@ const GEO_DATA = {
       note: "昔の逓信省(ていしんしょう)の「テ」から作られた「〒」",
       svg: "<circle cx='24' cy='24' r='20'/><text x='24' y='32' font-size='22' text-anchor='middle' fill='#223' stroke='none' font-weight='bold'>〒</text>" },
     { id: "jinja", name: "神社", kana: "じんじゃ",
-      note: "鳥居の形",
-      svg: "<path d='M8 13h32M13 22h22M16 13v26M32 13v26'/>" },
+      note: "鳥居(とりい)の形",
+      svg: "<path d='M9 14h30M13 20h22M16 14v25M32 14v25'/>" },
     { id: "jiin", name: "寺院", kana: "じいん",
       note: "寺でよく使われる「卍(まんじ)」の印",
       svg: "<text x='24' y='36' font-size='34' text-anchor='middle' fill='#223' stroke='none'>卍</text>" },
@@ -347,7 +347,7 @@ const GEO_DATA = {
       svg: "<path d='M24 8L8 17h32zM12 17v14M24 17v14M36 17v14M8 34h32'/>" },
     { id: "todai", name: "灯台", kana: "とうだい",
       note: "灯台を上から見た形と、四方八方に広がる光のようす",
-      svg: "<circle cx='24' cy='24' r='3.5' fill='#223' stroke='none'/><path d='M24 17V6M24 31v11M17 24H6M31 24h11M19 19l-6-6M29 19l6-6M19 29l-6 6M29 29l6 6'/>" }
+      svg: "<circle cx='24' cy='24' r='3' fill='#223' stroke='none'/><path d='M24 19V7M24 29v12M19 24H7M29 24h12M21 21L13 13M27 21l8-8M21 27l-8 8M27 27l8 8'/>" }
   ]
 };
 
