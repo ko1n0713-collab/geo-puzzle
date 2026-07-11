@@ -1,0 +1,1374 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<!-- ============================================================
+     index.html — 地理落ちものパズル 本体
+     役割: 画面(HTML)・見た目(CSS)・ゲームの動き(JavaScript)をすべて持つファイル。
+     ※調整は config.js、地理データの修正は data.js で行い、このファイルは編集しない想定です。
+     ============================================================ -->
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#2b3a55">
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="./icons/icon-192.png">
+<title>地理おちものパズル</title>
+<style>
+  /* ===== 全体 ===== */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overscroll-behavior: none; }
+  body {
+    font-family: "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif;
+    background: #2b3a55;
+    color: #fff;
+    touch-action: manipulation;          /* ダブルタップ拡大を防ぐ */
+    -webkit-user-select: none; user-select: none;
+    -webkit-text-size-adjust: 100%;
+  }
+  #app {
+    height: 100dvh;
+    max-width: 640px;
+    margin: 0 auto;
+    display: flex; flex-direction: column;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+
+  /* ===== 上部: スコアなどの表示 ===== */
+  #hud {
+    display: flex; align-items: center; gap: 12px;
+    padding: 6px 10px; font-size: 14px;
+  }
+  #hud .stat { background: rgba(255,255,255,.12); border-radius: 8px; padding: 4px 10px; }
+  #hud .stat b { font-size: 17px; margin-left: 4px; }
+  #hud #level-name { font-size: 14px; }
+  #pause-btn {
+    margin-left: auto; width: 44px; height: 44px; border-radius: 10px;
+    border: none; background: rgba(255,255,255,.15); color: #fff; font-size: 20px;
+  }
+
+  /* ===== 中央: 盤面とサイドパネル ===== */
+  #main { flex: 1; display: flex; gap: 8px; padding: 4px 8px; min-height: 0; }
+  #board-wrap {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    min-width: 0; min-height: 0;
+    touch-action: none;                  /* 盤面上のスワイプでスクロールしない */
+  }
+  #board {
+    position: relative; overflow: hidden;
+    background:
+      linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px),
+      #1c2739;
+    background-size: var(--cell) var(--cell);
+    border: 2px solid #55688f; border-radius: 6px;
+  }
+
+  #side { width: 118px; display: flex; flex-direction: column; gap: 8px; overflow: hidden; }
+  .side-box {
+    background: rgba(255,255,255,.08); border-radius: 10px; padding: 6px;
+  }
+  .side-box h2 { font-size: 11px; font-weight: normal; color: #bcd; margin-bottom: 4px; }
+  #next { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  #log { font-size: 10px; color: #cde; line-height: 1.5; max-height: 90px; overflow: hidden; }
+  #legend { display: flex; flex-direction: column; gap: 3px; font-size: 10px; }
+  #legend .chip { display: flex; align-items: center; gap: 5px; }
+  #legend .swatch {
+    width: 14px; height: 14px; border-radius: 4px; flex: none;
+    display: flex; align-items: center; justify-content: center; font-size: 9px;
+  }
+
+  /* ===== ブロック ===== */
+  .block {
+    position: absolute; left: 0; top: 0;
+    width: var(--cell); height: var(--cell);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    border-radius: 14%;
+    box-shadow: inset 0 -3px 0 rgba(0,0,0,.18);
+    transition: transform var(--fall-ms, 110ms) ease-out;
+    line-height: 1.15; text-align: center; overflow: hidden;
+    padding: 2px;
+  }
+  .block.pref { background: #f7f5ef; color: #333; border: 2px solid #9aa4b5; }
+  .block .kana { font-size: calc(var(--cell) * 0.145); opacity: .85; white-space: nowrap; }
+  .block .name { font-size: calc(var(--cell) * 0.30); font-weight: bold; white-space: nowrap; }
+  /* 文字が長いブロックは自動で少し小さくする(可読性優先の自動縮小) */
+  .block[data-nlen="4"] .name { font-size: calc(var(--cell) * 0.235); }
+  .block[data-nlen="5"] .name, .block[data-nlen="6"] .name { font-size: calc(var(--cell) * 0.19); }
+  .block[data-nlen="7"] .name { font-size: calc(var(--cell) * 0.155); }
+  .block[data-klen="6"] .kana, .block[data-klen="7"] .kana { font-size: calc(var(--cell) * 0.12); }
+  .block[data-klen="8"] .kana, .block[data-klen="9"] .kana { font-size: calc(var(--cell) * 0.105); }
+  .block[data-klen="10"] .kana, .block[data-klen="11"] .kana,
+  .block[data-klen="12"] .kana, .block[data-klen="13"] .kana { font-size: calc(var(--cell) * 0.085); }
+
+  /* 地図記号モードの記号ブロック(絵だけを表示) */
+  .block.symbol svg { width: 74%; height: 74%; }
+  #fact-icon svg, .hi-swatch svg { width: 80%; height: 80%; }
+
+  /* NEXT 用の小さいブロック(盤面の外なので位置指定なし) */
+  .mini { position: static; width: 52px; height: 52px; transition: none; --cell: 52px; flex: none; }
+
+  /* 消去の演出: 光る → 縮んで消える */
+  .block.flash { filter: brightness(1.7); box-shadow: 0 0 14px #fff; z-index: 2; }
+  .block.clearing {
+    transition: transform var(--clear-ms, 380ms) ease-in, opacity var(--clear-ms, 380ms) ease-in;
+    opacity: 0; z-index: 2;
+  }
+
+  /* 「2れんさ!」のポップアップ */
+  #chain-popup {
+    position: absolute; left: 50%; top: 32%; transform: translate(-50%, -50%);
+    font-size: calc(var(--cell, 40px) * 0.7); font-weight: bold; color: #ffe066;
+    text-shadow: 0 2px 8px rgba(0,0,0,.6), 0 0 18px rgba(255,200,60,.8);
+    opacity: 0; pointer-events: none; z-index: 5; white-space: nowrap;
+  }
+  #chain-popup.show { animation: chainpop var(--chainpop-ms, 900ms) ease-out; }
+  @keyframes chainpop {
+    0%   { opacity: 0; transform: translate(-50%, -50%) scale(.4); }
+    20%  { opacity: 1; transform: translate(-50%, -50%) scale(1.15); }
+    35%  { transform: translate(-50%, -50%) scale(1); }
+    75%  { opacity: 1; }
+    100% { opacity: 0; transform: translate(-50%, -50%) scale(1); }
+  }
+
+  /* ===== ファクトカード(消去時の知識を大きく見せる) ===== */
+  #fact-bar {
+    min-height: 68px; margin: 0 8px; padding: 8px 10px;
+    background: rgba(255,255,255,.1); border-radius: 12px;
+    border-left: 6px solid var(--fact-color, #55688f);
+    display: flex; align-items: center; gap: 10px; color: #dfe8f5;
+  }
+  #fact-bar.fact-pop { animation: factpop 700ms ease-out; }
+  @keyframes factpop {
+    0%   { transform: scale(.97); box-shadow: 0 0 0 3px var(--fact-color, #fff), 0 0 26px var(--fact-color, #fff); }
+    60%  { transform: scale(1.01); }
+    100% { transform: scale(1); box-shadow: none; }
+  }
+  #fact-icon {
+    width: 44px; height: 44px; border-radius: 10px; flex: none;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; background: var(--fact-color, #46608f);
+  }
+  #fact-body { min-width: 0; }
+  #fact-main { font-size: 18px; font-weight: bold; line-height: 1.25; }
+  #fact-sub { font-size: 12px; color: #cdd8ea; line-height: 1.4; margin-top: 2px; }
+  #history-btn {
+    margin-left: auto; width: 46px; height: 46px; flex: none;
+    border: none; border-radius: 10px;
+    background: rgba(255,255,255,.15); color: #fff; font-size: 20px;
+  }
+
+  /* ===== ファクト履歴・リザルトの一覧 ===== */
+  .history-list {
+    width: 100%; max-width: 460px; max-height: 45vh; overflow-y: auto;
+    background: rgba(255,255,255,.07); border-radius: 12px; padding: 6px 10px;
+    text-align: left;
+  }
+  .history-item {
+    display: flex; gap: 9px; align-items: center; padding: 7px 2px;
+    border-bottom: 1px solid rgba(255,255,255,.09);
+  }
+  .history-item:last-child { border-bottom: none; }
+  .history-item .hi-swatch {
+    width: 30px; height: 30px; border-radius: 8px; flex: none;
+    display: flex; align-items: center; justify-content: center; font-size: 15px;
+  }
+  .history-item .hi-main { font-size: 14px; font-weight: bold; }
+  .history-item .hi-sub { font-size: 11px; color: #bcd; line-height: 1.35; }
+  .history-item .hi-count { margin-left: auto; font-size: 13px; color: #ffe066; white-space: nowrap; }
+  .history-empty { padding: 14px; font-size: 13px; color: #bcd; }
+
+  /* ===== タイトルのレベル選択・はやさ設定 ===== */
+  #level-select {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+    width: 100%; max-width: 440px;
+  }
+  #speed-select-wrap { display: flex; align-items: center; gap: 10px; font-size: 14px; color: #cdd8ea; }
+  #speed-select { display: flex; gap: 8px; }
+  #level-select button, #speed-select button {
+    font-size: 14px; padding: 10px 6px; border-radius: 10px;
+    border: 2px solid transparent; background: #3d5378; color: #fff;
+    box-shadow: none; font-weight: normal;
+  }
+  #speed-select button { min-width: 80px; }
+  #level-select button.selected, #speed-select button.selected {
+    border-color: #f5a623; background: #4a6494; font-weight: bold;
+  }
+
+  /* ===== リザルト画面(内容が多いのでスクロール可能に) ===== */
+  #result-overlay { justify-content: flex-start; overflow-y: auto; gap: 12px; padding-top: 26px; }
+  #result-overlay h1 { font-size: 24px; }
+  #result-overlay .history-list { max-height: 24vh; flex: none; }
+  #result-stats { font-size: 16px; line-height: 1.8; }
+  .overlay .section-title { font-size: 14px; color: #ffd980; }
+
+  /* ===== 地図記号ずかん ===== */
+  #mapsym-overlay { justify-content: flex-start; overflow-y: auto; gap: 12px; padding-top: 26px; }
+  #mapsym-overlay h1 { font-size: 22px; }
+  #mapsym-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+    width: 100%; max-width: 470px;
+  }
+  .ms-card {
+    background: #f7f5ef; color: #223; border-radius: 12px; padding: 8px 5px 7px;
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+  }
+  .ms-card svg { width: 54px; height: 54px; }
+  .ms-name { font-size: 13px; font-weight: bold; }
+  .ms-kana { font-size: 9px; color: #667; }
+  .ms-note { font-size: 9.5px; color: #445; line-height: 1.35; text-align: center; }
+
+  /* ===== 操作ボタン ===== */
+  #controls {
+    display: flex; justify-content: center; gap: 8px;
+    padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
+  }
+  #controls button {
+    min-width: 60px; min-height: 60px; flex: 1; max-width: 84px;
+    font-size: 26px; border: none; border-radius: 14px;
+    background: #46608f; color: #fff;
+    box-shadow: 0 3px 0 #2d3f61;
+    touch-action: none;
+  }
+  #controls button:active { transform: translateY(2px); box-shadow: 0 1px 0 #2d3f61; }
+
+  /* ===== オーバーレイ(タイトル・ポーズなど) ===== */
+  .overlay {
+    position: fixed; inset: 0; z-index: 10;
+    background: rgba(20,28,45,.92);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 18px; padding: 24px; text-align: center;
+  }
+  .overlay.hidden { display: none; }
+  .overlay h1 { font-size: 30px; }
+  .overlay p { font-size: 14px; color: #cdd8ea; line-height: 1.9; }
+  .overlay button {
+    font-size: 20px; padding: 14px 46px; border: none; border-radius: 14px;
+    background: #f5a623; color: #402c00; font-weight: bold;
+    box-shadow: 0 4px 0 #b97c14;
+  }
+  .overlay .error-list { font-size: 12px; color: #ffb3b3; text-align: left; max-height: 40vh; overflow: auto; }
+
+  /* 予期しないエラーを画面に出す赤いバー(iPadでは開発ツールが見られないため) */
+  #runtime-error {
+    position: fixed; left: 8px; right: 8px; bottom: 8px; z-index: 99;
+    background: #b3261e; color: #fff; font-size: 12px; padding: 8px 10px;
+    border-radius: 8px; display: none; white-space: pre-wrap; word-break: break-all;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- 上部: スコア・レベル・連鎖 -->
+  <header id="hud">
+    <span class="stat">スコア<b id="score">0</b></span>
+    <span class="stat">レベル<b id="level-name">-</b></span>
+    <span class="stat">れんさ<b id="chain">-</b></span>
+    <button id="pause-btn" aria-label="ポーズ">⏸</button>
+  </header>
+
+  <!-- 中央: 盤面 + サイド(NEXT・記録・凡例) -->
+  <main id="main">
+    <div id="board-wrap"><div id="board"><div id="chain-popup"></div></div></div>
+    <aside id="side">
+      <div class="side-box"><h2>つぎ</h2><div id="next"></div></div>
+      <div class="side-box"><h2>きろく</h2><div id="log">けしたペアが<br>ここに出ます</div></div>
+      <div class="side-box" id="legend-box"><h2>いろのいみ</h2><div id="legend"></div></div>
+    </aside>
+  </main>
+
+  <!-- ファクトカード(消去時に知識を大きく表示。📖で履歴) -->
+  <div id="fact-bar">
+    <span id="fact-icon">💡</span>
+    <div id="fact-body">
+      <div id="fact-main">正しい組み合わせをとなりに置くと消えるよ!</div>
+      <div id="fact-sub"></div>
+    </div>
+    <button id="history-btn" aria-label="ファクトの履歴">📖</button>
+  </div>
+
+  <!-- 操作ボタン -->
+  <div id="controls">
+    <button id="btn-left"  aria-label="左へ">◀</button>
+    <button id="btn-ccw"   aria-label="左回転">↺</button>
+    <button id="btn-cw"    aria-label="右回転">↻</button>
+    <button id="btn-right" aria-label="右へ">▶</button>
+    <button id="btn-soft"  aria-label="はやく落とす">▼</button>
+    <button id="btn-hard"  aria-label="いっきに落とす">⤓</button>
+  </div>
+</div>
+
+<!-- タイトル画面(レベルを選んで開始) -->
+<div id="title-overlay" class="overlay">
+  <h1>🗾 地理おちものパズル</h1>
+  <!-- この文はゲームの読み込みに成功すると自動で書きかわる。残ったままなら読み込み失敗 -->
+  <p id="title-level">ゲームを読み込んでいます…<br>
+  この表示のまま変わらないときは、ZIPを解凍(展開)して、<br>
+  index.html・config.js・data.js を同じフォルダに置いてから開いてください。</p>
+  <div id="level-select"></div>
+  <div id="speed-select-wrap"><span>はやさ</span><div id="speed-select"></div></div>
+  <button id="start-btn">はじめる</button>
+  <button id="mapsym-btn" style="background:#46608f;color:#fff;box-shadow:0 4px 0 #2d3f61;font-size:15px;padding:10px 24px">🗺 地図記号ずかん</button>
+  <p style="font-size:12px">そうさ: ドラッグで移動 / タップで回転 / 下にスワイプで落とす<br>
+  キーボード: ←→移動 ↑回転 ↓はやく落とす スペースでいっきに落とす</p>
+</div>
+
+<!-- 地図記号ずかん(data.js の mapSymbols から自動生成) -->
+<div id="mapsym-overlay" class="overlay hidden">
+  <h1>🗺 地図記号ずかん</h1>
+  <div id="mapsym-grid"></div>
+  <button id="mapsym-close-btn">とじる</button>
+</div>
+
+<!-- ポーズ画面 -->
+<div id="pause-overlay" class="overlay hidden">
+  <h1>ちょっと休けい</h1>
+  <button id="resume-btn">つづける</button>
+  <button id="pause-title-btn" style="background:#46608f;color:#fff;box-shadow:0 4px 0 #2d3f61">さいしょにもどる</button>
+</div>
+
+<!-- ゲームオーバー → リザルト(残ったブロックのヒント + ふりかえり) -->
+<div id="result-overlay" class="overlay hidden">
+  <h1>ゲームオーバー</h1>
+  <p id="result-stats"></p>
+  <p class="section-title" id="leftover-title">💡 のこったブロック、こうすれば消せた!</p>
+  <div id="leftover-list" class="history-list"></div>
+  <p class="section-title">📖 きょうのふりかえり</p>
+  <div id="result-list" class="history-list"></div>
+  <button id="retry-btn">もういちど</button>
+  <button id="to-title-btn" style="background:#46608f;color:#fff;box-shadow:0 4px 0 #2d3f61">レベルをえらぶ</button>
+</div>
+
+<!-- ファクトの履歴(📖ボタンでいつでも見られる) -->
+<div id="history-overlay" class="overlay hidden">
+  <h1>📖 おぼえたファクト</h1>
+  <div id="history-list" class="history-list"></div>
+  <button id="history-close-btn">とじる</button>
+</div>
+
+<!-- data.js にエラーがあるとき -->
+<div id="data-error-overlay" class="overlay hidden">
+  <h1>データにエラーがあります</h1>
+  <div class="error-list" id="data-error-list"></div>
+  <p>data.js を確認してください。</p>
+</div>
+
+<!-- config.js / data.js が読み込めなかったとき -->
+<div id="boot-error-overlay" class="overlay hidden">
+  <h1>ファイルが足りません</h1>
+  <p id="boot-error-text"></p>
+  <p>ZIPファイルの場合は、まず<b>解凍(展開)</b>してください。<br>
+  そのうえで index.html・config.js・data.js を<br>
+  <b>同じフォルダ</b>に置いて、index.html を開いてください。</p>
+</div>
+
+<!-- 予期しないエラーの表示バー -->
+<div id="runtime-error"></div>
+
+<script src="./config.js"></script>
+<script src="./data.js"></script>
+<script>
+"use strict";
+/* ============================================================
+   ゲームロジック本体
+   ここから下は編集しない想定です(調整は config.js で)。
+   ============================================================ */
+
+// ── 起動前チェック ────────────────────────────
+// 予期しないエラーが起きたら画面下に赤いバーで表示する(報告用)
+let bootFailed = false;
+window.addEventListener("error", ev => {
+  if (bootFailed) return;
+  const bar = document.getElementById("runtime-error");
+  bar.textContent = "エラーが起きました(この画面を撮って報告してください): " + ev.message;
+  bar.style.display = "block";
+});
+
+// config.js / data.js が読み込めていない場合は、直しかたを表示して止まる
+// (ZIPを解凍せずに index.html だけを開くと起こる)
+if (typeof CONFIG === "undefined" || typeof GEO_DATA === "undefined") {
+  bootFailed = true;
+  const missing = [
+    typeof CONFIG === "undefined" ? "config.js" : null,
+    typeof GEO_DATA === "undefined" ? "data.js" : null
+  ].filter(Boolean).join(" と ");
+  document.getElementById("boot-error-text").textContent =
+    missing + " が読み込めませんでした。";
+  document.getElementById("title-overlay").classList.add("hidden");
+  document.getElementById("boot-error-overlay").classList.remove("hidden");
+  throw new Error(missing + " が読み込めませんでした");
+}
+
+// ── よく使う定数 ──────────────────────────────
+const COLS = CONFIG.COLS;
+const ROWS = CONFIG.ROWS;
+const HIDDEN = 1;                    // 盤面の上にある見えないスポーン行の数
+const TOTAL_ROWS = ROWS + HIDDEN;    // 内部的な行数(0行目が見えない行)
+// 相方ブロックの位置: 0=軸の上, 1=右, 2=下, 3=左(右回転で 0→1→2→3)
+const DIR_DR = [-1, 0, 1, 0];
+const DIR_DC = [0, 1, 0, -1];
+
+// ── 画面の部品 ────────────────────────────────
+const $ = id => document.getElementById(id);
+const boardEl = $("board"), boardWrap = $("board-wrap"), nextEl = $("next");
+
+// ── データの索引(id で引けるようにする) ─────────
+const typeById = new Map(GEO_DATA.featureTypes.map(t => [t.id, t]));
+const prefById = new Map(GEO_DATA.prefectures.map(p => [p.id, p]));
+const featureById = new Map(GEO_DATA.features.map(f => [f.id, f]));
+
+// ── ゲームの状態 ──────────────────────────────
+let state = "title";      // title / playing / paused / full
+let busy = false;         // 固定・落下処理のアニメーション中は true(操作を受け付けない)
+let board = [];           // board[行][列] = ブロック or null
+let piece = null;         // 落下中のペア { axis, sub, row, col, dir }
+let nextPair = null;      // 次のペア [ブロック情報, ブロック情報]
+let pools = null;         // 今のレベルの出題プール { features, prefs }
+let levelDef = null;      // 今のレベル定義
+let cellPx = 40;          // 1マスの大きさ(px)。画面サイズから計算する
+let softDrop = false;     // ▼を押している間 true
+let lastFall = 0;         // 最後に1マス落ちた時刻
+let lockUntil = null;     // 接地中: この時刻になったら固定する
+let uidSeq = 0;
+
+// ============================================================
+// データ検証: data.js を編集したときの書きまちがいをチェックする
+// ============================================================
+function validateData() {
+  const errors = [];
+  if (GEO_DATA.prefectures.length !== 47)
+    errors.push(`都道府県が ${GEO_DATA.prefectures.length} 件です(47件必要)`);
+  for (const f of GEO_DATA.features) {
+    if (!typeById.has(f.type)) errors.push(`${f.name}: 種別 "${f.type}" が featureTypes にありません`);
+    if (!Array.isArray(f.prefectures) || f.prefectures.length === 0)
+      errors.push(`${f.name}: 対応する都道府県がありません`);
+    else for (const pid of f.prefectures)
+      if (!prefById.has(pid)) errors.push(`${f.name}: 都道府県 id "${pid}" が見つかりません`);
+  }
+  for (const lv of CONFIG.LEVELS) {
+    if (Array.isArray(lv.pool))
+      for (const fid of lv.pool)
+        if (!featureById.has(fid)) errors.push(`レベル「${lv.name}」: 地形 id "${fid}" が見つかりません`);
+  }
+  return errors;
+}
+
+// ============================================================
+// レベルの出題プールを作る(設計書 5.1)
+// ============================================================
+function buildPools(lv) {
+  // 地図記号モード: 「記号ブロック」(絵)と「意味ブロック」(名前)が同じ記号なら消える
+  if (lv.pool === "mapSymbols") {
+    const syms = (GEO_DATA.mapSymbols || []).slice();
+    // features側=記号ブロック / prefs側=意味ブロック として同じ一覧を使う
+    return { mode: "mapsym", features: syms, prefs: syms };
+  }
+  let feats;
+  if (lv.pool === "all") {
+    feats = GEO_DATA.features.slice();                       // 全収録データ
+  } else if (Array.isArray(lv.pool)) {
+    feats = lv.pool.map(id => featureById.get(id));          // id 指定
+  } else if (lv.pool && Array.isArray(lv.pool.types)) {
+    feats = GEO_DATA.features.filter(f => lv.pool.types.includes(f.type)); // 種別指定
+  } else {
+    feats = [];
+  }
+  // 県プールは、プール内の地形の対応県だけから自動生成(正解相手のいない県は出さない)
+  const prefIds = new Set();
+  for (const f of feats) for (const pid of f.prefectures) prefIds.add(pid);
+  return { mode: "geo", features: feats, prefs: [...prefIds].map(id => prefById.get(id)) };
+}
+
+// ============================================================
+// ピース生成(設計書 5.2): ペア内で正解の組み合わせは避ける
+// ============================================================
+const randomOf = arr => arr[Math.floor(Math.random() * arr.length)];
+
+// 盤面にあるブロックの「正解相手」になれるブロックをプールから集める
+function partnerCandidates(kind) {
+  const out = [];
+  // 地図記号モード: 盤面にある逆側ブロックと同じ記号が相手
+  if (pools.mode === "mapsym") {
+    const otherKind = kind === "feature" ? "pref" : "feature";
+    const ids = new Set();
+    for (const row of board) for (const b of row)
+      if (b && b.kind === otherKind) ids.add(b.data.id);
+    return pools.features.filter(s => ids.has(s.id));
+  }
+  if (kind === "feature") {
+    // 盤面の県ブロック → その県が正解に含まれる地形
+    const prefIds = new Set();
+    for (const row of board) for (const b of row)
+      if (b && b.kind === "pref") prefIds.add(b.data.id);
+    if (prefIds.size === 0) return out;
+    for (const f of pools.features)
+      if (f.prefectures.some(pid => prefIds.has(pid))) out.push(f);
+  } else {
+    // 盤面の地形ブロック → その正解の県
+    const prefIds = new Set();
+    for (const row of board) for (const b of row)
+      if (b && b.kind === "feature")
+        for (const pid of b.data.prefectures) prefIds.add(pid);
+    if (prefIds.size === 0) return out;
+    for (const p of pools.prefs)
+      if (prefIds.has(p.id)) out.push(p);
+  }
+  return out;
+}
+
+function drawBlockInfo() {
+  // 地形1 : 県 PREF_RATIO の割合で種類を決める
+  const prefProb = CONFIG.PREF_RATIO / (1 + CONFIG.PREF_RATIO);
+  const kind = Math.random() < prefProb ? "pref" : "feature";
+  // PARTNER_BIAS の確率で「盤面にあるブロックと組になれるもの」から選ぶ
+  // (収録数が多いレベルでも、置いたブロックの相手が流れてくるようにする)
+  if (Math.random() < CONFIG.PARTNER_BIAS) {
+    const candidates = partnerCandidates(kind);
+    if (candidates.length > 0) return { kind, data: randomOf(candidates) };
+  }
+  return { kind, data: randomOf(kind === "pref" ? pools.prefs : pools.features) };
+}
+
+function isCorrectCombo(a, b) {
+  if (a.kind === b.kind) return false;
+  // 地図記号モード: 記号ブロックと意味ブロックが同じ記号なら正解
+  if (pools && pools.mode === "mapsym") return a.data.id === b.data.id;
+  const f = a.kind === "feature" ? a.data : b.data;
+  const p = a.kind === "pref" ? a.data : b.data;
+  return f.prefectures.includes(p.id);
+}
+
+function makePair() {
+  const a = drawBlockInfo();
+  let b = drawBlockInfo();
+  let guard = 0;
+  while (isCorrectCombo(a, b) && guard++ < 100) b = drawBlockInfo(); // 正解ペアは引き直し
+  return [a, b];
+}
+
+// ============================================================
+// ブロックの見た目を作る
+// ============================================================
+// 背景色の明るさから文字色(黒/白)を決める
+function textColorFor(hex) {
+  const r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16);
+  const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return lum >= 0.6 ? "#3a2c14" : "#fff";
+}
+
+// 地図記号の絵(SVG)のHTMLを作る(ブロック・ずかん・履歴で共用)
+function symbolSvg(s) {
+  return `<svg viewBox="0 0 48 48" fill="none" stroke="#223" stroke-width="3" ` +
+         `stroke-linecap="round" stroke-linejoin="round">${s.svg}</svg>`;
+}
+
+function createBlockEl(info, mini) {
+  const el = document.createElement("div");
+  el.className = "block" + (info.kind === "pref" ? " pref" : "") + (mini ? " mini" : "");
+  const d = info.data;
+  // 地図記号モードの記号ブロック: 名前は見せず、記号の絵だけ(何の記号か考えるのがクイズ)
+  if (pools && pools.mode === "mapsym" && info.kind === "feature") {
+    el.classList.add("pref", "symbol");
+    el.innerHTML = symbolSvg(d);
+    return el;
+  }
+  el.dataset.nlen = Math.min(d.name.length, 7);
+  el.dataset.klen = Math.min(d.kana.length, 13);
+  if (info.kind === "feature") {
+    const t = typeById.get(d.type);
+    el.style.background = t.color;          // 色は種別マスタから(直書きしない)
+    el.style.color = textColorFor(t.color);
+  }
+  el.innerHTML = `<span class="kana"></span><span class="name"></span>`;
+  el.querySelector(".kana").textContent = d.kana;
+  el.querySelector(".name").textContent = d.name;
+  return el;
+}
+
+// 盤面上のブロック(位置つき)を作る
+function createBoardBlock(info, row, col) {
+  const el = createBlockEl(info, false);
+  boardEl.appendChild(el);
+  const block = { uid: ++uidSeq, kind: info.kind, data: info.data, el, row, col };
+  setBlockPos(block, true);
+  return block;
+}
+
+// ブロックを(row, col)の位置へ動かす(CSS transition で滑らかに動く)
+function setBlockPos(b, instant) {
+  if (instant) b.el.style.transition = "none";
+  // 0行目(見えない行)は盤面の上にはみ出す → overflow:hidden で隠れる
+  b.el.style.transform = `translate(${b.col * 100}%, ${(b.row - HIDDEN) * 100}%)`;
+  if (instant) { b.el.offsetHeight; b.el.style.transition = ""; }
+}
+
+// ============================================================
+// 盤面の処理
+// ============================================================
+function emptyBoard() {
+  board = Array.from({ length: TOTAL_ROWS }, () => Array(COLS).fill(null));
+}
+
+function cellFree(r, c) {
+  return r >= 0 && r < TOTAL_ROWS && c >= 0 && c < COLS && !board[r][c];
+}
+
+// ペアが(row, col, dir)に置けるか
+function canPlace(row, col, dir) {
+  const sr = row + DIR_DR[dir], sc = col + DIR_DC[dir];
+  return cellFree(row, col) && cellFree(sr, sc);
+}
+
+function updatePiecePos() {
+  piece.axis.row = piece.row; piece.axis.col = piece.col;
+  piece.sub.row = piece.row + DIR_DR[piece.dir];
+  piece.sub.col = piece.col + DIR_DC[piece.dir];
+  setBlockPos(piece.axis); setBlockPos(piece.sub);
+}
+
+function canFall() { return piece && canPlace(piece.row + 1, piece.col, piece.dir); }
+
+// ── 操作 ──────────────────────────────────────
+function tryMove(dc) {
+  if (!piece || busy || state !== "playing") return false;
+  if (canPlace(piece.row, piece.col + dc, piece.dir)) {
+    piece.col += dc; updatePiecePos(); return true;
+  }
+  return false;
+}
+
+// 指定の列までできるだけ近づける(ドラッグ操作用)
+function moveToCol(target) {
+  if (!piece || busy || state !== "playing") return;
+  while (piece.col < target && tryMove(1)) {}
+  while (piece.col > target && tryMove(-1)) {}
+}
+
+function tryRotate(cw) {
+  if (!piece || busy || state !== "playing") return;
+  const nd = (piece.dir + (cw ? 1 : 3)) % 4;
+  // そのまま回す → だめなら左右に1マスずらして試す(簡易ウォールキック)
+  for (const dc of [0, -1, 1]) {
+    if (canPlace(piece.row, piece.col + dc, nd)) {
+      piece.dir = nd; piece.col += dc; updatePiecePos(); return;
+    }
+  }
+}
+
+function hardDrop() {
+  if (!piece || busy || state !== "playing") return;
+  while (canFall()) piece.row++;
+  updatePiecePos();
+  lockUntil = null;
+  lockPiece(); // すぐ固定
+}
+
+// ── 固定と重力 ────────────────────────────────
+const sleep = ms => new Promise(res => setTimeout(res, ms));
+
+async function lockPiece() {
+  busy = true;
+  // ペアを盤面に書き込む
+  board[piece.axis.row][piece.axis.col] = piece.axis;
+  board[piece.sub.row][piece.sub.col] = piece.sub;
+  piece = null;
+  piecesPlaced++;                       // 置いた数を数える(速度の漸増に使う)
+  // 重力 → 正解隣接の消去 → 連鎖(消えなくなるまで繰り返す)
+  await resolveBoard();
+  spawnPiece();
+  busy = false;
+  lastFall = performance.now();
+}
+
+// 今の落下速度: レベルの基準 × はやさ設定 × 漸増(置いた数に応じて速くなる)
+function currentSpeedMs() {
+  const base = levelDef.speedMs * CONFIG.SPEED_OPTIONS[selectedSpeedIdx].mul;
+  const steps = Math.floor(piecesPlaced / CONFIG.SPEEDUP_EVERY_PIECES);
+  return Math.max(CONFIG.MIN_SPEED_MS, base * Math.pow(CONFIG.SPEEDUP_FACTOR, steps));
+}
+
+async function applyGravity() {
+  let moved = false;
+  for (let c = 0; c < COLS; c++) {
+    let write = TOTAL_ROWS - 1;
+    for (let r = TOTAL_ROWS - 1; r >= 0; r--) {
+      const b = board[r][c];
+      if (!b) continue;
+      if (r !== write) {
+        board[write][c] = b; board[r][c] = null;
+        b.row = write; setBlockPos(b);
+        moved = true;
+      }
+      write--;
+    }
+  }
+  if (moved) await sleep(CONFIG.GRAVITY_STEP_MS + 40); // 落ちるアニメを見せる
+}
+
+// ============================================================
+// 消去と連鎖(設計書 3.4〜3.6)【このゲームの核】
+// ============================================================
+let score = 0;
+let piecesPlaced = 0;   // この回に置いたピース数(速度の漸増に使う)
+let maxChain = 0;       // この回の最大連鎖数
+let blocksCleared = 0;  // この回に消したブロック数
+
+// 盤面を走査し、縦横に隣接する「県×地形」の正解の組を全部見つける
+// 返り値: blocks=消すブロックの集合 / edges=正解の組(ファクト表示用)
+function findMatches() {
+  const blocks = new Set();
+  const edges = [];
+  for (let r = 0; r < TOTAL_ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const a = board[r][c];
+      if (!a) continue;
+      for (const [nr, nc] of [[r, c + 1], [r + 1, c]]) {  // 右どなりと下どなりを見る
+        const b = (nr < TOTAL_ROWS && nc < COLS) ? board[nr][nc] : null;
+        if (!b || !isCorrectCombo(a, b)) continue;
+        const f = a.kind === "feature" ? a : b;
+        const p = a.kind === "pref" ? a : b;
+        edges.push({ feature: f.data, pref: p.data });
+        blocks.add(a); blocks.add(b);   // 正解の組を持つブロックは全部まとめて消す
+      }
+    }
+  }
+  return { blocks, edges };
+}
+
+// 消去 → 重力 → また消去 … を、消えなくなるまで繰り返す
+async function resolveBoard() {
+  await applyGravity();                 // まず分離落下を settle させる
+  let chain = 0;
+  while (true) {
+    const { blocks, edges } = findMatches();
+    if (blocks.size === 0) break;
+    chain++;
+    showChain(chain);
+    addScore(blocks.size, chain);
+    queueFacts(edges);
+    addLog(edges);
+    await animateClear(blocks);
+    await applyGravity();               // 消えた分、上のブロックが落ちる → 連鎖判定へ
+  }
+  if (chain > maxChain) maxChain = chain;
+  return chain;
+}
+
+// スコア計算: 基本点 × 連鎖倍率 + 同時消しボーナス(config で調整可)
+function addScore(count, chain) {
+  const mul = CONFIG.CHAIN_MULTIPLIER[Math.min(chain - 1, CONFIG.CHAIN_MULTIPLIER.length - 1)];
+  score += count * CONFIG.BASE_SCORE * mul;
+  if (count >= 3) score += (count - 2) * CONFIG.MULTI_BONUS;
+  blocksCleared += count;
+  $("score").textContent = score;
+}
+
+// 消去アニメーション: 光る → 縮んで消える
+async function animateClear(blocks) {
+  for (const b of blocks) b.el.classList.add("flash");
+  await sleep(CONFIG.CLEAR_FLASH_MS);
+  for (const b of blocks) {
+    b.el.classList.add("clearing");
+    b.el.style.transform += " scale(0.1)";
+  }
+  await sleep(CONFIG.CLEAR_ANIM_MS);
+  for (const b of blocks) {
+    b.el.remove();
+    board[b.row][b.col] = null;
+  }
+}
+
+// 連鎖数の表示(HUD + 盤面のポップアップ)
+function showChain(chain) {
+  $("chain").textContent = chain;
+  if (chain < 2) return;                // ポップアップは2連鎖から
+  const pop = $("chain-popup");
+  pop.textContent = chain + "れんさ!";
+  pop.style.animationDuration = CONFIG.CHAIN_POPUP_MS + "ms";
+  pop.classList.remove("show");
+  pop.offsetWidth;                      // アニメーションをやり直すためのおまじない
+  pop.classList.add("show");
+}
+
+// ── 消去時ファクト表示(設計書 6): カードで大きく見せ、キューで順番に表示 ──
+const factQueue = [];
+let factTimer = null;
+
+// ファクトの文(「群馬県を流れる ─ 豆知識」)を種別マスタから組み立てる
+function factSentence(feature, pref) {
+  if (pools.mode === "mapsym") return feature.note || "";  // 地図記号: 由来をそのまま見せる
+  const template = typeById.get(feature.type).factTemplate;
+  let text = template.replace("{pref}", pref.name);
+  if (feature.note) text += " ─ " + feature.note;
+  return text;
+}
+
+function queueFacts(edges) {
+  const seen = new Set();
+  for (const e of edges) {
+    const key = e.feature.id + ":" + e.pref.id;
+    if (seen.has(key)) continue;        // 同じ組み合わせは1回だけ
+    seen.add(key);
+    factQueue.push(e);
+    addFactHistory(e);                  // 履歴にも記録する
+  }
+  if (!factTimer) nextFact();
+}
+
+function nextFact() {
+  const e = factQueue.shift();
+  if (!e) { factTimer = null; return; }
+  const bar = $("fact-bar");
+  const icon = $("fact-icon");
+  if (pools.mode === "mapsym") {
+    // 地図記号: 記号の絵 + 「◯◯の地図記号」 + 由来
+    bar.style.setProperty("--fact-color", "#7f9dc9");
+    icon.innerHTML = symbolSvg(e.feature);
+    icon.style.background = "#f7f5ef";
+    $("fact-main").textContent = e.feature.name + " の地図記号";
+  } else {
+    const t = typeById.get(e.feature.type);
+    bar.style.setProperty("--fact-color", t.color);
+    icon.textContent = t.icon;
+    icon.style.background = "";
+    icon.style.color = textColorFor(t.color);
+    $("fact-main").textContent = e.feature.name + " × " + e.pref.name;
+  }
+  $("fact-sub").textContent = factSentence(e.feature, e.pref);
+  bar.classList.remove("fact-pop");
+  bar.offsetWidth;                      // アニメーションをやり直すためのおまじない
+  bar.classList.add("fact-pop");
+  factTimer = setTimeout(nextFact, CONFIG.FACT_DURATION_MS);
+}
+
+function resetFactBar() {
+  factQueue.length = 0;
+  if (factTimer) { clearTimeout(factTimer); factTimer = null; }
+  const bar = $("fact-bar");
+  bar.style.removeProperty("--fact-color");
+  bar.classList.remove("fact-pop");
+  $("fact-icon").textContent = "💡";
+  $("fact-icon").style.color = "";
+  $("fact-icon").style.background = "";
+  $("fact-main").textContent = pools && pools.mode === "mapsym"
+    ? "記号と同じ名前をとなりに置くと消えるよ!"
+    : "正しい組み合わせをとなりに置くと消えるよ!";
+  $("fact-sub").textContent = "";
+}
+
+// ── ファクトの履歴(この回に出た知識。📖ボタンとリザルトで見られる) ──
+const factHistory = [];               // [{ feature, pref, count }] 新しい順
+const factHistoryKeys = new Map();    // "地形id:県id" → 履歴エントリ
+
+function addFactHistory(e) {
+  const key = e.feature.id + ":" + e.pref.id;
+  let entry = factHistoryKeys.get(key);
+  if (entry) {
+    entry.count++;
+    factHistory.splice(factHistory.indexOf(entry), 1);  // いちばん上に移動
+  } else {
+    entry = { feature: e.feature, pref: e.pref, count: 1 };
+    factHistoryKeys.set(key, entry);
+  }
+  factHistory.unshift(entry);
+}
+
+// 履歴の一覧を listEl の中に描画する(履歴画面とリザルトで共用)
+function renderHistory(listEl) {
+  listEl.innerHTML = "";
+  if (factHistory.length === 0) {
+    const div = document.createElement("div");
+    div.className = "history-empty";
+    div.textContent = "まだありません。正しい組み合わせを消すと、ここにたまっていきます。";
+    listEl.appendChild(div);
+    return;
+  }
+  for (const entry of factHistory) {
+    const item = document.createElement("div");
+    item.className = "history-item";
+    const sw = document.createElement("span");
+    sw.className = "hi-swatch";
+    const main = document.createElement("div");
+    main.className = "hi-main";
+    if (pools.mode === "mapsym") {
+      sw.style.background = "#f7f5ef";
+      sw.innerHTML = symbolSvg(entry.feature);
+      main.textContent = entry.feature.name + "(" + entry.feature.kana + ")";
+    } else {
+      const t = typeById.get(entry.feature.type);
+      sw.style.background = t.color;
+      sw.style.color = textColorFor(t.color);
+      sw.textContent = t.icon;
+      main.textContent = entry.feature.name + " × " + entry.pref.name;
+    }
+    const body = document.createElement("div");
+    const sub = document.createElement("div");
+    sub.className = "hi-sub";
+    sub.textContent = factSentence(entry.feature, entry.pref);
+    body.append(main, sub);
+    const count = document.createElement("span");
+    count.className = "hi-count";
+    count.textContent = "×" + entry.count;
+    item.append(sw, body, count);
+    listEl.appendChild(item);
+  }
+}
+
+// ── きろく(この回に消した組み合わせの直近ログ) ──
+const recentLog = [];
+function addLog(edges) {
+  const seen = new Set();
+  for (const e of edges) {
+    const key = e.feature.id + ":" + e.pref.id;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    recentLog.unshift(pools.mode === "mapsym"
+      ? e.feature.name + " の記号"
+      : e.feature.name + "×" + e.pref.name);
+  }
+  recentLog.length = Math.min(recentLog.length, 6);
+  $("log").textContent = "";
+  for (const line of recentLog) {
+    const div = document.createElement("div");
+    div.textContent = line;
+    $("log").appendChild(div);
+  }
+}
+
+// ── ピースのスポーン ──────────────────────────
+function spawnPiece() {
+  const spawnCol = 2;                 // 左から3列目
+  const [a, s] = nextPair;
+  nextPair = makePair();
+  renderNext();
+  // スポーン位置(軸=見える最上段, 相方=その上の見えない行)が埋まっていたらゲームオーバー
+  if (!canPlace(HIDDEN, spawnCol, 0)) {
+    gameOver();
+    return;
+  }
+  piece = {
+    axis: createBoardBlock(a, HIDDEN, spawnCol),
+    sub: createBoardBlock(s, 0, spawnCol),
+    row: HIDDEN, col: spawnCol, dir: 0
+  };
+  lockUntil = null;
+}
+
+function renderNext() {
+  nextEl.innerHTML = "";
+  // 相方を上、軸を下に表示(スポーン時と同じ向き)
+  nextEl.appendChild(createBlockEl(nextPair[1], true));
+  nextEl.appendChild(createBlockEl(nextPair[0], true));
+}
+
+// ============================================================
+// ゲームループ(落下のタイミング管理)
+// ============================================================
+function frame(now) {
+  requestAnimationFrame(frame);
+  if (state !== "playing" || busy || !piece) { lastFall = now; return; }
+
+  // 接地中: 猶予時間が切れたら固定。動かして下が空いたら落下再開
+  if (lockUntil !== null) {
+    if (canFall()) { lockUntil = null; lastFall = now; }
+    else if (now >= lockUntil) { lockUntil = null; lockPiece(); }
+    return;
+  }
+
+  const speed = currentSpeedMs();
+  const interval = softDrop ? Math.min(CONFIG.SOFT_DROP_MS, speed) : speed;
+  if (now - lastFall >= interval) {
+    lastFall = now;
+    if (canFall()) { piece.row++; updatePiecePos(); }
+    else lockUntil = now + CONFIG.LOCK_DELAY_MS;   // 接地 → 固定までの猶予
+  }
+}
+
+// ============================================================
+// 画面サイズに合わせて1マスの大きさを決める
+// ============================================================
+function layout() {
+  const w = boardWrap.clientWidth - 8, h = boardWrap.clientHeight - 8;
+  cellPx = Math.max(24, Math.floor(Math.min(w / COLS, h / ROWS)));
+  boardEl.style.width = cellPx * COLS + "px";
+  boardEl.style.height = cellPx * ROWS + "px";
+  boardEl.style.setProperty("--cell", cellPx + "px");
+}
+
+// ============================================================
+// 凡例(いろのいみ)を種別マスタから自動生成
+// ============================================================
+function renderLegend() {
+  const legend = $("legend");
+  legend.innerHTML = "";
+  const items = [{ color: "#f7f5ef", icon: "県", label: "都道府県", dark: true }]
+    .concat(GEO_DATA.featureTypes.map(t => ({ color: t.color, icon: t.icon, label: t.label })));
+  for (const it of items) {
+    const chip = document.createElement("div");
+    chip.className = "chip";
+    const sw = document.createElement("span");
+    sw.className = "swatch";
+    sw.style.background = it.color;
+    sw.style.color = it.dark ? "#333" : textColorFor(it.color);
+    sw.textContent = it.icon;
+    const label = document.createElement("span");
+    label.textContent = it.label;
+    chip.append(sw, label);
+    legend.appendChild(chip);
+  }
+}
+
+// ============================================================
+// 地図記号ずかん(data.js の mapSymbols から自動生成)
+// ============================================================
+function buildMapSymbols() {
+  const grid = $("mapsym-grid");
+  grid.innerHTML = "";
+  for (const s of (GEO_DATA.mapSymbols || [])) {
+    const card = document.createElement("div");
+    card.className = "ms-card";
+    card.innerHTML =
+      `<svg viewBox="0 0 48 48" fill="none" stroke="#223" stroke-width="3" ` +
+      `stroke-linecap="round" stroke-linejoin="round">${s.svg}</svg>` +
+      `<div class="ms-name"></div><div class="ms-kana"></div><div class="ms-note"></div>`;
+    card.querySelector(".ms-name").textContent = s.name;
+    card.querySelector(".ms-kana").textContent = s.kana;
+    card.querySelector(".ms-note").textContent = s.note || "";
+    grid.appendChild(card);
+  }
+}
+$("mapsym-btn").addEventListener("click", () => $("mapsym-overlay").classList.remove("hidden"));
+$("mapsym-close-btn").addEventListener("click", () => $("mapsym-overlay").classList.add("hidden"));
+
+// ============================================================
+// ゲームの開始・リセット
+// ============================================================
+// タイトルで選ばれているレベル(1〜)。前回の選択を localStorage から復元する
+let selectedLevel = CONFIG.START_LEVEL;
+
+function startGame() {
+  const idx = Math.min(Math.max(selectedLevel, 1), CONFIG.LEVELS.length) - 1;
+  levelDef = CONFIG.LEVELS[idx];
+  pools = buildPools(levelDef);
+  $("level-name").textContent = (idx + 1) + " " + levelDef.name;
+  // 地図記号モードでは地形の色の凡例は関係ないので隠す
+  $("legend-box").style.display = pools.mode === "mapsym" ? "none" : "";
+  // 盤面のブロックだけ消す(連鎖ポップアップは残す)
+  boardEl.querySelectorAll(".block").forEach(el => el.remove());
+  emptyBoard();
+  piece = null; busy = false; softDrop = false; lockUntil = null;
+  // スコア・統計・連鎖・きろく・ファクト表示と履歴をリセット
+  score = 0; piecesPlaced = 0; maxChain = 0; blocksCleared = 0;
+  $("score").textContent = "0"; $("chain").textContent = "-";
+  recentLog.length = 0;
+  $("log").innerHTML = "けしたペアが<br>ここに出ます";
+  factHistory.length = 0; factHistoryKeys.clear();
+  resetFactBar();
+  nextPair = makePair();
+  spawnPiece();
+  state = "playing";
+  lastFall = performance.now();
+}
+
+// ゲームオーバー → リザルト(残ったブロックのヒント + この回のふりかえり)
+function gameOver() {
+  state = "gameover";
+  $("result-stats").innerHTML =
+    `スコア <b style="font-size:24px">${score}</b><br>` +
+    `さいだい ${maxChain} れんさ ・ けしたブロック ${blocksCleared} こ`;
+  const hintCount = renderLeftoverHints();
+  $("leftover-title").style.display = hintCount ? "" : "none";
+  $("leftover-list").style.display = hintCount ? "" : "none";
+  renderHistory($("result-list"));
+  $("result-overlay").classList.remove("hidden");
+}
+
+// 盤面に残ったブロックから「どの組み合わせなら消せたか」のヒントを作る
+// (消せなかったブロックも知識に変える。設計の学習方針)
+function renderLeftoverHints() {
+  const listEl = $("leftover-list");
+  listEl.innerHTML = "";
+  // 残っているブロックを種類ごとに数える(多く残ったものを優先して見せる)
+  const featLeft = new Map(), prefLeft = new Map();
+  for (const row of board) for (const b of row) {
+    if (!b) continue;
+    const m = b.kind === "feature" ? featLeft : prefLeft;
+    m.set(b.data.id, (m.get(b.data.id) || 0) + 1);
+  }
+  const entries = [];
+  // 地図記号モード: 残った記号の「名前と由来」を教える
+  if (pools.mode === "mapsym") {
+    const left = new Map();
+    for (const row of board) for (const b of row)
+      if (b) left.set(b.data.id, (left.get(b.data.id) || 0) + 1);
+    for (const [id] of [...left.entries()].sort((a, b) => b[1] - a[1])) {
+      const s = pools.features.find(x => x.id === id);
+      entries.push({ svg: s.svg, main: `${s.name}(${s.kana})`, sub: s.note || "" });
+    }
+    return renderHintEntries(listEl, entries);
+  }
+  // 地形 → 正解の都道府県ぜんぶ(これがそのまま覚えるべき知識になる)
+  for (const [id] of [...featLeft.entries()].sort((a, b) => b[1] - a[1])) {
+    const f = featureById.get(id);
+    const t = typeById.get(f.type);
+    entries.push({
+      color: t.color, icon: t.icon,
+      main: `${f.name}(${f.kana})`,
+      sub: f.prefectures.map(pid => prefById.get(pid).name).join("・") + " と組にすると消せた!"
+    });
+  }
+  // 残った地形が少ないときは、残った県 → このレベルで組になれた地形も見せる
+  if (entries.length < 3) {
+    for (const [id] of [...prefLeft.entries()].sort((a, b) => b[1] - a[1])) {
+      const p = prefById.get(id);
+      const partners = pools.features.filter(f => f.prefectures.includes(id)).map(f => f.name);
+      if (partners.length === 0) continue;
+      entries.push({
+        color: "#f7f5ef", icon: "県", dark: true,
+        main: `${p.name}(${p.kana})`,
+        sub: partners.join("・") + " と組にすると消せた!"
+      });
+    }
+  }
+  return renderHintEntries(listEl, entries);
+}
+
+// ヒントの一覧を描画する(地形モード・地図記号モード共用)
+function renderHintEntries(listEl, entries) {
+  entries.length = Math.min(entries.length, 6);   // 多すぎると読まないので6件まで
+  for (const e of entries) {
+    const item = document.createElement("div");
+    item.className = "history-item";
+    const sw = document.createElement("span");
+    sw.className = "hi-swatch";
+    if (e.svg) {
+      sw.style.background = "#f7f5ef";
+      sw.innerHTML = symbolSvg(e);
+    } else {
+      sw.style.background = e.color;
+      sw.style.color = e.dark ? "#333" : textColorFor(e.color);
+      sw.textContent = e.icon;
+    }
+    const body = document.createElement("div");
+    const main = document.createElement("div");
+    main.className = "hi-main";
+    main.textContent = e.main;
+    const sub = document.createElement("div");
+    sub.className = "hi-sub";
+    sub.textContent = e.sub;
+    body.append(main, sub);
+    item.append(sw, body);
+    listEl.appendChild(item);
+  }
+  return entries.length;
+}
+
+// ── タイトルのレベル選択ボタン(config.js の LEVELS から自動生成) ──
+function buildLevelSelect() {
+  const box = $("level-select");
+  box.innerHTML = "";
+  CONFIG.LEVELS.forEach((lv, i) => {
+    const btn = document.createElement("button");
+    btn.textContent = `Lv${i + 1} ${lv.name}`;
+    if (i + 1 === selectedLevel) btn.classList.add("selected");
+    btn.addEventListener("click", () => {
+      selectedLevel = i + 1;
+      box.querySelectorAll("button").forEach(b => b.classList.remove("selected"));
+      btn.classList.add("selected");
+      try { localStorage.setItem(CONFIG.STORAGE_PREFIX + "level", String(selectedLevel)); } catch (e) {}
+    });
+    box.appendChild(btn);
+  });
+}
+
+// ── タイトルの「はやさ」設定(config.js の SPEED_OPTIONS から自動生成) ──
+let selectedSpeedIdx = CONFIG.DEFAULT_SPEED_OPTION;
+
+function buildSpeedSelect() {
+  const box = $("speed-select");
+  box.innerHTML = "";
+  CONFIG.SPEED_OPTIONS.forEach((opt, i) => {
+    const btn = document.createElement("button");
+    btn.textContent = opt.label;
+    if (i === selectedSpeedIdx) btn.classList.add("selected");
+    btn.addEventListener("click", () => {
+      selectedSpeedIdx = i;
+      box.querySelectorAll("button").forEach(b => b.classList.remove("selected"));
+      btn.classList.add("selected");
+      try { localStorage.setItem(CONFIG.STORAGE_PREFIX + "speed", String(i)); } catch (e) {}
+    });
+    box.appendChild(btn);
+  });
+}
+
+// ============================================================
+// 入力: キーボード
+// ============================================================
+document.addEventListener("keydown", e => {
+  if (e.repeat && ["ArrowUp", "x", "X", "z", "Z", " "].includes(e.key)) return;
+  switch (e.key) {
+    case "ArrowLeft":  tryMove(-1); break;
+    case "ArrowRight": tryMove(1); break;
+    case "ArrowUp": case "x": case "X": tryRotate(true); break;
+    case "z": case "Z": tryRotate(false); break;
+    case "ArrowDown": softDrop = true; break;
+    case " ": hardDrop(); break;
+    case "Escape":
+      if (!$("history-overlay").classList.contains("hidden")) closeHistory();
+      else togglePause();
+      break;
+    default: return;
+  }
+  e.preventDefault();
+});
+document.addEventListener("keyup", e => { if (e.key === "ArrowDown") softDrop = false; });
+
+// ============================================================
+// 入力: 画面ボタン(押しっぱなしで連続移動にも対応)
+// ============================================================
+function bindButton(id, onDown, onUp, repeat) {
+  const el = $(id);
+  let timer = null;
+  const stop = () => { if (timer) { clearInterval(timer); timer = null; } if (onUp) onUp(); };
+  el.addEventListener("pointerdown", e => {
+    e.preventDefault();
+    onDown();
+    if (repeat) timer = setInterval(onDown, CONFIG.MOVE_REPEAT_MS);
+  });
+  el.addEventListener("pointerup", stop);
+  el.addEventListener("pointercancel", stop);
+  el.addEventListener("pointerleave", stop);
+}
+bindButton("btn-left",  () => tryMove(-1), null, true);
+bindButton("btn-right", () => tryMove(1),  null, true);
+bindButton("btn-cw",  () => tryRotate(true));
+bindButton("btn-ccw", () => tryRotate(false));
+bindButton("btn-soft", () => { softDrop = true; }, () => { softDrop = false; });
+bindButton("btn-hard", () => hardDrop());
+
+// ============================================================
+// 入力: 盤面のタッチ操作(ドラッグで移動 / タップで回転 / 下スワイプで落下)
+// ============================================================
+let ptr = null;
+boardWrap.addEventListener("pointerdown", e => {
+  if (state !== "playing" || !piece) return;
+  e.preventDefault();
+  ptr = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now(),
+          startCol: piece.col, moved: false };
+  boardWrap.setPointerCapture(e.pointerId);
+});
+boardWrap.addEventListener("pointermove", e => {
+  if (!ptr || e.pointerId !== ptr.id || !piece) return;
+  const dx = e.clientX - ptr.x, dy = e.clientY - ptr.y;
+  if (Math.abs(dx) > 10 || Math.abs(dy) > 10) ptr.moved = true;
+  moveToCol(ptr.startCol + Math.round(dx / cellPx));   // 指に追従して列移動
+});
+boardWrap.addEventListener("pointerup", e => {
+  if (!ptr || e.pointerId !== ptr.id) { ptr = null; return; }
+  const dx = e.clientX - ptr.x, dy = e.clientY - ptr.y;
+  const dt = performance.now() - ptr.t;
+  const moved = ptr.moved;
+  ptr = null;
+  if (!piece) return;
+  if (dy > 60 && dt < 300 && Math.abs(dx) < 40) hardDrop();  // 下に素早くスワイプ → いっきに落とす
+  else if (!moved && dt < 350) tryRotate(true);              // タップ → 回転
+});
+boardWrap.addEventListener("pointercancel", () => { ptr = null; });
+
+// ============================================================
+// ポーズ・ファクト履歴・画面遷移
+// ============================================================
+function togglePause() {
+  if (state === "playing") {
+    state = "paused";
+    $("pause-overlay").classList.remove("hidden");
+  } else if (state === "paused") {
+    state = "playing";
+    lastFall = performance.now();
+    if (lockUntil !== null) lockUntil = performance.now() + CONFIG.LOCK_DELAY_MS;
+    $("pause-overlay").classList.add("hidden");
+  }
+}
+$("pause-btn").addEventListener("click", togglePause);
+$("resume-btn").addEventListener("click", togglePause);
+// ポーズから「さいしょにもどる」= 今の回をやめてタイトルへ
+$("pause-title-btn").addEventListener("click", () => {
+  $("pause-overlay").classList.add("hidden");
+  state = "title";
+  $("title-overlay").classList.remove("hidden");
+});
+
+// 📖 ファクト履歴: プレイ中に開いたら一時停止し、閉じたら再開する
+let historyWasPlaying = false;
+function openHistory() {
+  if ($("history-overlay").classList.contains("hidden") === false) return;
+  historyWasPlaying = (state === "playing");
+  if (historyWasPlaying) state = "paused";
+  renderHistory($("history-list"));
+  $("history-overlay").classList.remove("hidden");
+}
+function closeHistory() {
+  $("history-overlay").classList.add("hidden");
+  if (historyWasPlaying && state === "paused") {
+    state = "playing";
+    lastFall = performance.now();
+    if (lockUntil !== null) lockUntil = performance.now() + CONFIG.LOCK_DELAY_MS;
+  }
+}
+$("history-btn").addEventListener("click", openHistory);
+$("history-close-btn").addEventListener("click", closeHistory);
+
+$("start-btn").addEventListener("click", () => {
+  $("title-overlay").classList.add("hidden");
+  startGame();
+});
+$("retry-btn").addEventListener("click", () => {
+  $("result-overlay").classList.add("hidden");
+  startGame();
+});
+$("to-title-btn").addEventListener("click", () => {
+  $("result-overlay").classList.add("hidden");
+  state = "title";
+  $("title-overlay").classList.remove("hidden");
+});
+
+// ============================================================
+// 起動処理
+// ============================================================
+window.addEventListener("resize", layout);
+window.addEventListener("orientationchange", () => setTimeout(layout, 100));
+
+(function init() {
+  const errors = validateData();
+  if (errors.length > 0) {
+    $("data-error-list").innerHTML = errors.map(e => `<div>・${e}</div>`).join("");
+    $("data-error-overlay").classList.remove("hidden");
+    return;
+  }
+  // 前回選んだレベル・はやさを復元(なければ config の既定値)
+  try {
+    const saved = parseInt(localStorage.getItem(CONFIG.STORAGE_PREFIX + "level"), 10);
+    if (saved >= 1 && saved <= CONFIG.LEVELS.length) selectedLevel = saved;
+    const savedSpeed = parseInt(localStorage.getItem(CONFIG.STORAGE_PREFIX + "speed"), 10);
+    if (savedSpeed >= 0 && savedSpeed < CONFIG.SPEED_OPTIONS.length) selectedSpeedIdx = savedSpeed;
+  } catch (e) {}
+  selectedLevel = Math.min(Math.max(selectedLevel, 1), CONFIG.LEVELS.length);
+  selectedSpeedIdx = Math.min(Math.max(selectedSpeedIdx, 0), CONFIG.SPEED_OPTIONS.length - 1);
+  $("title-level").textContent = "レベルとはやさをえらんで「はじめる」を押してね";
+  buildLevelSelect();
+  buildSpeedSelect();
+  document.documentElement.style.setProperty("--fall-ms", CONFIG.FALL_ANIM_MS + "ms");
+  document.documentElement.style.setProperty("--clear-ms", CONFIG.CLEAR_ANIM_MS + "ms");
+  layout();
+  renderLegend();
+  buildMapSymbols();
+  requestAnimationFrame(frame);
+  // Service Worker(オフライン対応)。Web公開時のみ動く(手元でファイルを直接開いたときは何もしない)
+  if ("serviceWorker" in navigator && location.protocol.indexOf("http") === 0) {
+    navigator.serviceWorker.register("./sw.js").catch(() => {});
+  }
+})();
+</script>
+</body>
+</html>
