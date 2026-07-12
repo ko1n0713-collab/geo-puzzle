@@ -251,6 +251,62 @@
   }
   #controls button:active { transform: translateY(2px); box-shadow: 0 1px 0 #2d3f61; }
 
+  #sound-btn {
+    width: 44px; height: 44px; border-radius: 10px;
+    border: none; background: rgba(255,255,255,.15); color: #fff; font-size: 18px;
+  }
+
+  /* 消えた点数がふわっと上がる演出 */
+  .score-float {
+    position: absolute; z-index: 4; pointer-events: none;
+    font-weight: bold; color: #ffe066; font-size: calc(var(--cell, 40px) * 0.5);
+    text-shadow: 0 2px 6px rgba(0,0,0,.6);
+    animation: floatup 900ms ease-out forwards;
+  }
+  @keyframes floatup {
+    0% { opacity: 0; transform: translate(-50%, 0) scale(.6); }
+    25% { opacity: 1; transform: translate(-50%, -12px) scale(1); }
+    100% { opacity: 0; transform: translate(-50%, -54px) scale(1); }
+  }
+
+  /* 達成バッジの獲得ポップアップ */
+  #badge-toast {
+    position: fixed; left: 50%; top: 20%; transform: translateX(-50%) translateY(-20px);
+    z-index: 20; background: linear-gradient(160deg, #fff3d0, #ffd980);
+    color: #5a3d00; border-radius: 16px; padding: 12px 20px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.4); text-align: center;
+    opacity: 0; pointer-events: none; min-width: 200px;
+  }
+  #badge-toast.show { animation: badgepop 2600ms ease-out; }
+  @keyframes badgepop {
+    0% { opacity: 0; transform: translateX(-50%) translateY(-30px) scale(.7); }
+    10% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1.05); }
+    18% { transform: translateX(-50%) translateY(0) scale(1); }
+    85% { opacity: 1; }
+    100% { opacity: 0; transform: translateX(-50%) translateY(-10px) scale(1); }
+  }
+  #badge-toast .bt-icon { font-size: 40px; line-height: 1; }
+  #badge-toast .bt-head { font-size: 12px; letter-spacing: 2px; margin-top: 2px; }
+  #badge-toast .bt-name { font-size: 20px; font-weight: bold; }
+
+  /* バッジ一覧 */
+  #badge-overlay { justify-content: flex-start; overflow-y: auto; gap: 12px; padding-top: 26px; }
+  #badge-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+    width: 100%; max-width: 480px;
+  }
+  .badge-card {
+    background: rgba(255,255,255,.09); border-radius: 14px; padding: 10px 6px;
+    display: flex; flex-direction: column; align-items: center; gap: 3px; text-align: center;
+    border: 2px solid transparent;
+  }
+  .badge-card.got { background: linear-gradient(160deg, rgba(255,224,102,.22), rgba(255,180,60,.12)); border-color: #f5a623; }
+  .badge-card .bc-icon { font-size: 34px; line-height: 1.1; }
+  .badge-card.locked .bc-icon { filter: grayscale(1); opacity: .35; }
+  .badge-card .bc-name { font-size: 12px; font-weight: bold; }
+  .badge-card.locked .bc-name { color: #93a5bf; }
+  .badge-card .bc-desc { font-size: 10px; color: #bcd; line-height: 1.35; }
+
   /* ===== オーバーレイ(タイトル・ポーズなど) ===== */
   .overlay {
     position: fixed; inset: 0; z-index: 10;
@@ -284,6 +340,7 @@
     <span class="stat">スコア<b id="score">0</b></span>
     <span class="stat">レベル<b id="level-name">-</b></span>
     <span class="stat">れんさ<b id="chain">-</b></span>
+    <button id="sound-btn" aria-label="音のオンオフ">🔊</button>
     <button id="pause-btn" aria-label="ポーズ">⏸</button>
   </header>
 
@@ -330,9 +387,11 @@
   <div id="speed-select-wrap"><span>はやさ</span><div id="speed-select"></div></div>
   <p id="title-hiscore" style="font-size:13px;color:#ffd980;min-height:1.2em;margin:-6px 0"></p>
   <button id="start-btn">はじめる</button>
-  <div style="display:flex;gap:10px">
+  <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
+    <button id="badge-btn" style="background:#46608f;color:#fff;box-shadow:0 4px 0 #2d3f61;font-size:15px;padding:10px 20px">🏅 バッジ</button>
     <button id="mapsym-btn" style="background:#46608f;color:#fff;box-shadow:0 4px 0 #2d3f61;font-size:15px;padding:10px 20px">🗺 地図記号ずかん</button>
     <button id="zukan-btn" style="background:#46608f;color:#fff;box-shadow:0 4px 0 #2d3f61;font-size:15px;padding:10px 20px">📖 おぼえたずかん</button>
+    <button id="title-sound-btn" style="background:#46608f;color:#fff;box-shadow:0 4px 0 #2d3f61;font-size:15px;padding:10px 20px">おと オン🔊</button>
   </div>
   <p style="font-size:12px">そうさ: ドラッグで移動 / タップで回転 / 下にスワイプで落とす<br>
   キーボード: ←→移動 ↑回転 ↓はやく落とす スペースでいっきに落とす</p>
@@ -344,6 +403,21 @@
   <div id="mapsym-grid"></div>
   <p style="font-size:11px;color:#9fb0c8">参考: 国土地理院「地図記号一覧」</p>
   <button id="mapsym-close-btn">とじる</button>
+</div>
+
+<!-- 達成バッジ一覧(config.js の BADGES から自動生成) -->
+<div id="badge-overlay" class="overlay hidden">
+  <h1>🏅 バッジ</h1>
+  <p id="badge-progress" class="section-title"></p>
+  <div id="badge-grid"></div>
+  <button id="badge-close-btn">とじる</button>
+</div>
+
+<!-- バッジ獲得のポップアップ -->
+<div id="badge-toast">
+  <div class="bt-icon"></div>
+  <div class="bt-head">バッジ かくとく!</div>
+  <div class="bt-name"></div>
 </div>
 
 <!-- おぼえたずかん(累計の学習記録。localStorage に保存される) -->
@@ -482,6 +556,115 @@ function saveStore(key, value) {
 // おぼえたずかん: 消去に成功した組み合わせの累計(ページを閉じても残る)
 // キーは「地形id:県id」、地図記号は「map:記号id」
 let zukan = loadStore("zukan", {});
+
+// ============================================================
+// 効果音(Web Audio。外部ファイル不要の簡単な音。いつでもミュート可)
+// ============================================================
+let audioCtx = null;
+let soundOn = loadStore("sound", CONFIG.SOUND_DEFAULT_ON !== false);
+
+function initAudio() {           // 音は最初のタップ後でないと鳴らせない決まりがあるため、開始時に用意
+  if (!audioCtx) { try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
+  if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
+}
+// 単音を鳴らす(freq=高さ, dur=長さ秒, type=波形, vol=音量, when=遅らせる秒)
+function beep(freq, dur, type, vol, when) {
+  if (!soundOn || !audioCtx) return;
+  const t = audioCtx.currentTime + (when || 0);
+  const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+  o.type = type || "square"; o.frequency.value = freq;
+  o.connect(g); g.connect(audioCtx.destination);
+  const v = (vol != null ? vol : 0.15) * CONFIG.SOUND_VOLUME / 0.18;
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(Math.max(v, 0.0002), t + 0.01);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.start(t); o.stop(t + dur + 0.02);
+}
+const sfx = {
+  move:   () => beep(300, 0.05, "square", 0.06),
+  rotate: () => beep(460, 0.06, "square", 0.08),
+  lock:   () => beep(150, 0.10, "triangle", 0.12),
+  clear:  (chain) => { const b = 520 + (chain - 1) * 120; beep(b, 0.12, "sine", 0.16); beep(b * 1.5, 0.14, "sine", 0.10, 0.05); },
+  gameover: () => [440, 349, 262].forEach((f, i) => beep(f, 0.32, "sawtooth", 0.13, i * 0.16)),
+  badge:  () => [523, 659, 784, 1047].forEach((f, i) => beep(f, 0.2, "triangle", 0.16, i * 0.1))
+};
+
+function updateSoundButtons() {
+  const label = soundOn ? "🔊" : "🔇";
+  $("sound-btn").textContent = label;
+  if ($("title-sound-btn")) $("title-sound-btn").textContent = "おと " + (soundOn ? "オン🔊" : "オフ🔇");
+}
+function toggleSound() {
+  soundOn = !soundOn; saveStore("sound", soundOn);
+  updateSoundButtons();
+  if (soundOn) { initAudio(); beep(660, 0.1, "sine", 0.14); }
+}
+
+// ============================================================
+// 達成バッジ(目標)。条件を満たすと自動で獲得し、ポップアップで知らせる
+// ============================================================
+let earnedBadges = loadStore("badges", {});
+let maxClearAtOnce = 0;  // この回で一度に消した最大数(バッジ判定用)
+const badgeToastQueue = [];
+let badgeToastBusy = false;
+
+// 覚えた「地形」の id 集合(1県でも組にできていれば入る)
+function collectedFeatureIds() {
+  const s = new Set();
+  for (const k of Object.keys(zukan)) if (!k.startsWith("map:")) s.add(k.split(":")[0]);
+  return s;
+}
+function collectedSymbolIds() {
+  const s = new Set();
+  for (const k of Object.keys(zukan)) if (k.startsWith("map:")) s.add(k.slice(4));
+  return s;
+}
+function collectAllMet(target) {
+  if (target === "mapSymbols") {
+    const got = collectedSymbolIds();
+    return (GEO_DATA.mapSymbols || []).every(s => got.has(s.id));
+  }
+  const gotF = collectedFeatureIds();
+  if (target === "all") {
+    const allFeat = GEO_DATA.features.every(f => gotF.has(f.id));
+    const gotS = collectedSymbolIds();
+    const allSym = (GEO_DATA.mapSymbols || []).every(s => gotS.has(s.id));
+    return allFeat && allSym;
+  }
+  // 種別id: その種別の地形をすべて集めた
+  const list = GEO_DATA.features.filter(f => f.type === target);
+  return list.length > 0 && list.every(f => gotF.has(f.id));
+}
+function badgeMet(b) {
+  switch (b.type) {
+    case "collectCount": return Object.keys(zukan).length >= b.value;
+    case "chain":        return maxChain >= b.value;
+    case "multi":        return maxClearAtOnce >= b.value;
+    case "score":        return score >= b.value;
+    case "collectAll":   return collectAllMet(b.target);
+    default: return false;
+  }
+}
+// 未獲得のバッジをチェックし、達成したら記録+ポップアップ
+function checkBadges() {
+  let changed = false;
+  for (const b of CONFIG.BADGES) {
+    if (earnedBadges[b.id]) continue;
+    if (badgeMet(b)) { earnedBadges[b.id] = true; changed = true; badgeToastQueue.push(b); }
+  }
+  if (changed) { saveStore("badges", earnedBadges); if (!badgeToastBusy) showNextBadgeToast(); }
+}
+function showNextBadgeToast() {
+  const b = badgeToastQueue.shift();
+  if (!b) { badgeToastBusy = false; return; }
+  badgeToastBusy = true;
+  const el = $("badge-toast");
+  el.querySelector(".bt-icon").textContent = b.icon;
+  el.querySelector(".bt-name").textContent = b.name;
+  el.classList.remove("show"); el.offsetWidth; el.classList.add("show");
+  sfx.badge();
+  setTimeout(showNextBadgeToast, 2700);
+}
 
 // ============================================================
 // データ検証: data.js を編集したときの書きまちがいをチェックする
@@ -692,7 +875,7 @@ function canFall() { return piece && canPlace(piece.row + 1, piece.col, piece.di
 function tryMove(dc) {
   if (!piece || busy || state !== "playing") return false;
   if (canPlace(piece.row, piece.col + dc, piece.dir)) {
-    piece.col += dc; updatePiecePos(); return true;
+    piece.col += dc; updatePiecePos(); sfx.move(); return true;
   }
   return false;
 }
@@ -710,7 +893,7 @@ function tryRotate(cw) {
   // そのまま回す → だめなら左右に1マスずらして試す(簡易ウォールキック)
   for (const dc of [0, -1, 1]) {
     if (canPlace(piece.row, piece.col + dc, nd)) {
-      piece.dir = nd; piece.col += dc; updatePiecePos(); return;
+      piece.dir = nd; piece.col += dc; updatePiecePos(); sfx.rotate(); return;
     }
   }
 }
@@ -734,8 +917,10 @@ async function lockPiece() {
   piece = null;
   updateHints();                        // 古いヒントの光を消す
   piecesPlaced++;                       // 置いた数を数える(速度の漸増に使う)
+  sfx.lock();
   // 重力 → 正解隣接の消去 → 連鎖(消えなくなるまで繰り返す)
   await resolveBoard();
+  checkBadges();                        // 連鎖・消し・スコア・ずかんの達成を判定
   await spawnPiece();
   busy = false;
   lastFall = performance.now();
@@ -806,7 +991,11 @@ async function resolveBoard() {
     if (blocks.size === 0) break;
     chain++;
     showChain(chain);
+    const before = score;
     addScore(blocks.size, chain);
+    if (blocks.size > maxClearAtOnce) maxClearAtOnce = blocks.size;
+    sfx.clear(chain);
+    showScoreFloat(blocks, score - before);
     queueFacts(edges);
     addLog(edges);
     await animateClear(blocks);
@@ -814,6 +1003,21 @@ async function resolveBoard() {
   }
   if (chain > maxChain) maxChain = chain;
   return chain;
+}
+
+// 消えた場所の中央あたりに「+点数」をふわっと表示する
+function showScoreFloat(blocks, gained) {
+  let sx = 0, sy = 0, n = 0;
+  for (const b of blocks) { sx += b.col; sy += b.row; n++; }
+  if (!n) return;
+  const col = sx / n, row = sy / n - HIDDEN;
+  const el = document.createElement("div");
+  el.className = "score-float";
+  el.textContent = "+" + gained;
+  el.style.left = ((col + 0.5) * 100 / COLS) + "%";
+  el.style.top = ((row + 0.3) * 100 / ROWS) + "%";
+  boardEl.appendChild(el);
+  setTimeout(() => el.remove(), 950);
 }
 
 // スコア計算: 基本点 × 連鎖倍率 + 同時消しボーナス(config で調整可)
@@ -1128,6 +1332,31 @@ $("mapsym-btn").addEventListener("click", () => $("mapsym-overlay").classList.re
 $("mapsym-close-btn").addEventListener("click", () => $("mapsym-overlay").classList.add("hidden"));
 
 // ============================================================
+// 達成バッジ一覧(config.js の BADGES から自動生成)
+// ============================================================
+function renderBadges() {
+  const grid = $("badge-grid");
+  grid.innerHTML = "";
+  let got = 0;
+  for (const b of CONFIG.BADGES) {
+    const has = !!earnedBadges[b.id];
+    if (has) got++;
+    const card = document.createElement("div");
+    card.className = "badge-card " + (has ? "got" : "locked");
+    const ic = document.createElement("div"); ic.className = "bc-icon"; ic.textContent = b.icon;
+    const nm = document.createElement("div"); nm.className = "bc-name"; nm.textContent = has ? b.name : "???";
+    const ds = document.createElement("div"); ds.className = "bc-desc"; ds.textContent = b.desc;
+    card.append(ic, nm, ds);
+    grid.appendChild(card);
+  }
+  $("badge-progress").textContent = `あつめたバッジ: ${got} / ${CONFIG.BADGES.length}`;
+}
+$("badge-btn").addEventListener("click", () => { renderBadges(); $("badge-overlay").classList.remove("hidden"); });
+$("badge-close-btn").addEventListener("click", () => $("badge-overlay").classList.add("hidden"));
+$("sound-btn").addEventListener("click", toggleSound);
+$("title-sound-btn").addEventListener("click", toggleSound);
+
+// ============================================================
 // おぼえたずかん(累計の学習記録。地形×県の集めた組み合わせを一覧表示)
 // ============================================================
 function renderZukan() {
@@ -1222,7 +1451,7 @@ function startGame() {
   emptyBoard();
   piece = null; busy = false; softDrop = false; lockUntil = null;
   // スコア・統計・連鎖・きろく・ファクト表示と履歴をリセット
-  score = 0; piecesPlaced = 0; maxChain = 0; blocksCleared = 0;
+  score = 0; piecesPlaced = 0; maxChain = 0; blocksCleared = 0; maxClearAtOnce = 0;
   $("score").textContent = "0"; $("chain").textContent = "-";
   recentLog.length = 0;
   $("log").innerHTML = "けしたペアが<br>ここに出ます";
@@ -1237,6 +1466,7 @@ function startGame() {
 // ゲームオーバー/終了 → リザルト(残ったブロックのヒント + この回のふりかえり)
 function gameOver(title) {
   state = "gameover";
+  sfx.gameover();
   $("result-title").textContent = title || "ゲームオーバー";
   $("result-stats").innerHTML =
     `スコア <b style="font-size:24px">${score}</b><br>` +
@@ -1255,6 +1485,7 @@ function gameOver(title) {
     }
   }
   $("result-hiscore").textContent = hsLine;
+  checkBadges();                        // 最終スコアなどでのバッジ獲得も判定
   const hintCount = renderLeftoverHints();
   $("leftover-title").style.display = hintCount ? "" : "none";
   $("leftover-list").style.display = hintCount ? "" : "none";
@@ -1427,6 +1658,7 @@ document.addEventListener("keydown", e => {
       if (!$("history-overlay").classList.contains("hidden")) closeHistory();
       else if (!$("zukan-overlay").classList.contains("hidden")) $("zukan-overlay").classList.add("hidden");
       else if (!$("mapsym-overlay").classList.contains("hidden")) $("mapsym-overlay").classList.add("hidden");
+      else if (!$("badge-overlay").classList.contains("hidden")) $("badge-overlay").classList.add("hidden");
       else togglePause();
       break;
     default: return;
@@ -1537,6 +1769,7 @@ $("history-btn").addEventListener("click", openHistory);
 $("history-close-btn").addEventListener("click", closeHistory);
 
 $("start-btn").addEventListener("click", () => {
+  initAudio();                          // 最初のタップで音を使えるようにする
   $("title-overlay").classList.add("hidden");
   startGame();
 });
@@ -1580,6 +1813,7 @@ window.addEventListener("orientationchange", () => setTimeout(layout, 100));
   buildModeSelect();
   buildSpeedSelect();
   updateTitleHiscore();
+  updateSoundButtons();
   document.documentElement.style.setProperty("--fall-ms", CONFIG.FALL_ANIM_MS + "ms");
   document.documentElement.style.setProperty("--clear-ms", CONFIG.CLEAR_ANIM_MS + "ms");
   layout();

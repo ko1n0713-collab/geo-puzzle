@@ -100,6 +100,36 @@ const CONFIG = {
       speedMs: 800, hint: false }
   ],
 
+  // ── 効果音 ─────────────────────────────────
+  SOUND_DEFAULT_ON: true,   // 最初から音を鳴らすか(画面のボタンでいつでも切りかえOK)
+  SOUND_VOLUME: 0.18,       // 音の大きさ(0〜1)。うるさければ小さくする
+
+  // ── 達成バッジ(目標)─────────────────────
+  // 集めるとタイトルの「🏅 バッジ」に飾られる。条件を満たすと自動で獲得。
+  // type の種類:
+  //   "collectCount" … 覚えた組み合わせの数が value 以上
+  //   "chain"        … 1ゲームの最大連鎖が value 以上
+  //   "multi"        … 一度に消した数が value 以上
+  //   "score"        … スコアが value 以上
+  //   "collectAll"   … target を全部集めた(target: "mapSymbols" / 種別id("river"等) / "all")
+  // ★ここも自由に増やせる(名前・絵文字・条件を足すだけ)
+  BADGES: [
+    { id: "first",    name: "はじめの一歩", icon: "🌱", type: "collectCount", value: 1,     desc: "はじめて正しい組み合わせを消す" },
+    { id: "chain3",   name: "れんさ名人",   icon: "🔥", type: "chain",        value: 3,     desc: "1ゲームで3れんさを出す" },
+    { id: "chain5",   name: "れんさの達人", icon: "⚡", type: "chain",        value: 5,     desc: "1ゲームで5れんさを出す" },
+    { id: "multi5",   name: "いっきに消し", icon: "💥", type: "multi",        value: 5,     desc: "一度に5こ以上消す" },
+    { id: "score1k",  name: "スコア1000",  icon: "⭐", type: "score",        value: 1000,  desc: "スコア1000をこえる" },
+    { id: "score5k",  name: "スコア5000",  icon: "🌟", type: "score",        value: 5000,  desc: "スコア5000をこえる" },
+    { id: "score10k", name: "スコア王",     icon: "👑", type: "score",        value: 10000, desc: "スコア10000をこえる" },
+    { id: "collect10", name: "ずかん見習い", icon: "📗", type: "collectCount", value: 10,    desc: "10種類おぼえる" },
+    { id: "collect30", name: "ずかん博士",   icon: "📘", type: "collectCount", value: 30,    desc: "30種類おぼえる" },
+    { id: "rivers",   name: "川はかせ",     icon: "🌊", type: "collectAll",   target: "river",      desc: "すべての川を消す" },
+    { id: "plains",   name: "平野はかせ",   icon: "🌾", type: "collectAll",   target: "plain",      desc: "すべての平野を消す" },
+    { id: "mountains", name: "山はかせ",    icon: "⛰️", type: "collectAll",   target: "mountain",   desc: "すべての山地・山脈を消す" },
+    { id: "symbols",  name: "記号マスター", icon: "🗺️", type: "collectAll",   target: "mapSymbols", desc: "すべての地図記号を消す" },
+    { id: "master",   name: "ものしり博士", icon: "🎓", type: "collectAll",   target: "all",        desc: "すべての組み合わせを集める" }
+  ],
+
   // ── 保存データ ─────────────────────────────
   STORAGE_PREFIX: "geopuzzle_"  // localStorage のキーの頭につける文字
 };
