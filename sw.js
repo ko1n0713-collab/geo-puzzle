@@ -4,7 +4,7 @@
 // ★更新を公開するときは、下の CACHE_VERSION を必ず1つ上げること(上げないと iPad に反映されない)
 // ============================================================
 
-const CACHE_VERSION = "v6";  // ← 更新のたびに v7, v8, ... と上げる
+const CACHE_VERSION = "v7";  // ← 更新のたびに v8, v9, ... と上げる
 const CACHE_NAME = "geopuzzle-" + CACHE_VERSION;
 
 // 地図記号の画像(icons/symbols/<id>.png)。data.js の mapSymbols と対応

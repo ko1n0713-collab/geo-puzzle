@@ -1034,10 +1034,10 @@ async function spawnPiece() {
 }
 
 // ── ヒント(設計書 5.4): 落下中ペアの正解相手になる盤面ブロックを淡く光らせる ──
-// レベルの hint 設定が true のとき、または練習モードのときに働く
+// ヒントは「れんしゅうモード」のときだけ働く(チャレンジでは光らない)
 function updateHints() {
   for (const el of boardEl.querySelectorAll(".block.hint")) el.classList.remove("hint");
-  if (!piece || !(levelDef.hint || isPractice())) return;
+  if (!piece || !isPractice()) return;
   for (const row of board) for (const b of row)
     if (b && (isCorrectCombo(piece.axis, b) || isCorrectCombo(piece.sub, b)))
       b.el.classList.add("hint");
