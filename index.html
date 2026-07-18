@@ -42,6 +42,8 @@
   #hud .stat { background: rgba(255,255,255,.12); border-radius: 8px; padding: 4px 10px; }
   #hud .stat b { font-size: 17px; margin-left: 4px; }
   #hud #level-name { font-size: 14px; }
+  #time-stat.low { background: rgba(220,60,50,.85); animation: timepulse .6s ease-in-out infinite alternate; }
+  @keyframes timepulse { from { opacity: .7; } to { opacity: 1; } }
   #pause-btn {
     margin-left: auto; width: 44px; height: 44px; border-radius: 10px;
     border: none; background: rgba(255,255,255,.15); color: #fff; font-size: 20px;
@@ -100,6 +102,11 @@
   .block[data-klen="8"] .kana, .block[data-klen="9"] .kana { font-size: calc(var(--cell) * 0.105); }
   .block[data-klen="10"] .kana, .block[data-klen="11"] .kana,
   .block[data-klen="12"] .kana, .block[data-klen="13"] .kana { font-size: calc(var(--cell) * 0.085); }
+
+  /* 🧠アイテムブロック */
+  .block.item { background: linear-gradient(160deg, #8d6fe0, #6a4cc4); border: 2px solid #b39ddb; color: #efe7ff; }
+  .block.item .item-icon { font-size: calc(var(--cell) * 0.42); line-height: 1.15; }
+  .block.item .item-label { font-size: calc(var(--cell) * 0.13); }
 
   /* 地図記号モードの記号ブロック(絵だけを表示) */
   .block.symbol img.symimg { width: 82%; height: 82%; object-fit: contain; }
@@ -184,17 +191,67 @@
     display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
     width: 100%; max-width: 440px;
   }
-  #speed-select-wrap, #mode-select-wrap { display: flex; align-items: center; gap: 10px; font-size: 14px; color: #cdd8ea; }
+  #speed-select-wrap, #mode-select-wrap, #user-select-wrap { display: flex; align-items: center; gap: 10px; font-size: 14px; color: #cdd8ea; }
   #speed-select, #mode-select { display: flex; gap: 8px; }
-  #level-select button, #speed-select button, #mode-select button {
+  #user-select { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+  #level-select button, #speed-select button, #mode-select button, #user-select button {
     font-size: 14px; padding: 10px 6px; border-radius: 10px;
     border: 2px solid transparent; background: #3d5378; color: #fff;
     box-shadow: none; font-weight: normal;
   }
   #speed-select button, #mode-select button { min-width: 80px; }
-  #level-select button.selected, #speed-select button.selected, #mode-select button.selected {
+  #user-select button { min-width: 64px; }
+  #level-select button.selected, #speed-select button.selected, #mode-select button.selected, #user-select button.selected {
     border-color: #f5a623; background: #4a6494; font-weight: bold;
   }
+
+  /* ===== 起死回生アイテム「ちしきのちから」 ===== */
+  #quiz-item-btn {
+    width: 100%; padding: 9px 4px; font-size: 16px; border: none; border-radius: 10px;
+    background: #7b5cd6; color: #fff; box-shadow: 0 3px 0 #523d99; font-weight: bold;
+  }
+  #quiz-item-btn:disabled { opacity: .4; box-shadow: none; }
+  #item-box .item-note { font-size: 9px; color: #bcd; margin-top: 4px; line-height: 1.4; }
+
+  #quiz-question { font-size: 18px; font-weight: bold; line-height: 1.6; max-width: 440px; text-align: center; }
+  #quiz-question img.symimg { width: 92px; height: 92px; background: #f7f5ef; border-radius: 14px; padding: 6px; }
+  #quiz-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; max-width: 440px; }
+  #quiz-choices button {
+    font-size: 17px; padding: 14px 8px; border-radius: 12px; border: none;
+    background: #3d5378; color: #fff; box-shadow: 0 3px 0 #263852; font-weight: bold;
+  }
+  #quiz-choices button:disabled { opacity: .9; }
+  #quiz-feedback { font-size: 16px; font-weight: bold; color: #ffe066; min-height: 1.3em; }
+
+  /* ===== ちしき編集画面 ===== */
+  #editor-overlay { justify-content: flex-start; overflow-y: auto; gap: 10px; padding-top: 22px; }
+  #editor-overlay h1 { font-size: 22px; }
+  .ed-panel { width: 100%; max-width: 460px; background: rgba(255,255,255,.07); border-radius: 12px; padding: 12px; text-align: left; }
+  .ed-panel h2 { font-size: 15px; color: #ffd980; margin-bottom: 8px; }
+  .ed-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+  .ed-row label { font-size: 13px; color: #cdd8ea; min-width: 66px; }
+  .ed-row input, .ed-row select {
+    flex: 1; min-width: 120px; font-size: 15px; padding: 8px; border-radius: 8px;
+    border: 1px solid #55688f; background: #eef2f8; color: #223;
+  }
+  .ed-prefs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin: 6px 0; }
+  .ed-prefs label {
+    font-size: 11px; color: #dfe8f5; background: rgba(255,255,255,.08);
+    border-radius: 6px; padding: 4px 2px; display: flex; align-items: center; gap: 3px; justify-content: center;
+    min-width: 0; cursor: pointer;
+  }
+  .ed-prefs label.on { background: #2e7d32; font-weight: bold; }
+  .ed-prefs input { display: none; }
+  .ed-region-head { font-size: 11px; color: #9fb0c8; margin: 6px 0 2px; }
+  .ed-btn { font-size: 15px; padding: 10px 18px; border: none; border-radius: 10px; background: #f5a623; color: #402c00; font-weight: bold; box-shadow: 0 3px 0 #b97c14; }
+  .ed-btn.sub { background: #46608f; color: #fff; box-shadow: 0 3px 0 #2d3f61; font-size: 13px; padding: 8px 14px; }
+  .ed-list { width: 100%; max-width: 460px; }
+  .ed-item { display: flex; align-items: center; gap: 8px; padding: 7px 4px; border-bottom: 1px solid rgba(255,255,255,.1); font-size: 13px; }
+  .ed-item .ei-sw { width: 24px; height: 24px; border-radius: 6px; flex: none; display: flex; align-items: center; justify-content: center; font-size: 13px; }
+  .ed-item .ei-del { margin-left: auto; background: #5a3a3a; color: #fff; border: none; border-radius: 8px; font-size: 12px; padding: 5px 10px; }
+  .ed-note-hint { font-size: 11px; color: #bcd; line-height: 1.5; }
+  #ed-newtype-fields { display: none; }
+  #ed-newtype-fields.show { display: block; }
 
   /* ヒント: 落下中ブロックの正解相手を淡く光らせる */
   .block.hint { animation: hintglow 1.1s ease-in-out infinite alternate; }
@@ -340,6 +397,7 @@
     <span class="stat">スコア<b id="score">0</b></span>
     <span class="stat">レベル<b id="level-name">-</b></span>
     <span class="stat">れんさ<b id="chain">-</b></span>
+    <span class="stat" id="time-stat">⏱<b id="time">-</b></span>
     <button id="sound-btn" aria-label="音のオンオフ">🔊</button>
     <button id="pause-btn" aria-label="ポーズ">⏸</button>
   </header>
@@ -349,6 +407,11 @@
     <div id="board-wrap"><div id="board"><div id="chain-popup"></div></div></div>
     <aside id="side">
       <div class="side-box"><h2>つぎ</h2><div id="next"></div></div>
+      <div class="side-box" id="item-box">
+        <h2>アイテム</h2>
+        <button id="quiz-item-btn">🧠 ×0</button>
+        <div class="item-note">クイズにせいかいすると下の3行が消える!</div>
+      </div>
       <div class="side-box"><h2>きろく</h2><div id="log">けしたペアが<br>ここに出ます</div></div>
       <div class="side-box" id="legend-box"><h2>いろのいみ</h2><div id="legend"></div></div>
     </aside>
@@ -382,6 +445,7 @@
   <p id="title-level">ゲームを読み込んでいます…<br>
   この表示のまま変わらないときは、ZIPを解凍(展開)して、<br>
   index.html・config.js・data.js を同じフォルダに置いてから開いてください。</p>
+  <div id="user-select-wrap"><span>あそぶ人</span><div id="user-select"></div></div>
   <div id="level-select"></div>
   <div id="mode-select-wrap"><span>モード</span><div id="mode-select"></div></div>
   <div id="speed-select-wrap"><span>はやさ</span><div id="speed-select"></div></div>
@@ -392,6 +456,7 @@
     <button id="mapsym-btn" style="background:#46608f;color:#fff;box-shadow:0 4px 0 #2d3f61;font-size:15px;padding:10px 20px">🗺 地図記号ずかん</button>
     <button id="zukan-btn" style="background:#46608f;color:#fff;box-shadow:0 4px 0 #2d3f61;font-size:15px;padding:10px 20px">📖 おぼえたずかん</button>
     <button id="title-sound-btn" style="background:#46608f;color:#fff;box-shadow:0 4px 0 #2d3f61;font-size:15px;padding:10px 20px">おと オン🔊</button>
+    <button id="editor-btn" style="background:#46608f;color:#fff;box-shadow:0 4px 0 #2d3f61;font-size:15px;padding:10px 20px">➕ ちしきをふやす</button>
   </div>
   <p style="font-size:12px">そうさ: ドラッグで移動 / タップで回転 / 下にスワイプで落とす<br>
   キーボード: ←→移動 ↑回転 ↓はやく落とす スペースでいっきに落とす</p>
@@ -403,6 +468,58 @@
   <div id="mapsym-grid"></div>
   <p style="font-size:11px;color:#9fb0c8">参考: 国土地理院「地図記号一覧」</p>
   <button id="mapsym-close-btn">とじる</button>
+</div>
+
+<!-- ちしき編集画面(data.js を書きかえずに項目・種別を追加できる) -->
+<div id="editor-overlay" class="overlay hidden">
+  <h1>➕ じぶんのちしきをふやす</h1>
+  <p class="ed-note-hint" style="max-width:460px;text-align:center">
+    ここで足したものは、この端末に保存され、次にあそぶときから出題されます。<br>
+    (地図帳で確かめてから足してください。バックアップは下の保存/読みこみで)
+  </p>
+
+  <div class="ed-panel">
+    <h2>① こうもく(川・平野・山など)を足す</h2>
+    <div class="ed-row">
+      <label>しゅるい</label>
+      <select id="ed-type"></select>
+    </div>
+    <div id="ed-newtype-fields">
+      <div class="ed-row"><label>なかまの名</label><input id="ed-nt-label" placeholder="例: 湖"></div>
+      <div class="ed-row"><label>アイコン</label><input id="ed-nt-icon" placeholder="例: ○" maxlength="2" style="max-width:80px">
+        <label style="min-width:44px">色</label><input id="ed-nt-color" type="color" value="#26c6da" style="max-width:60px;min-width:60px;padding:2px"></div>
+    </div>
+    <div class="ed-row"><label>名まえ</label><input id="ed-name" placeholder="例: 琵琶湖"></div>
+    <div class="ed-row"><label>ふりがな</label><input id="ed-kana" placeholder="例: びわこ"></div>
+    <div class="ed-row"><label>びこう</label><input id="ed-note" placeholder="消したとき出る豆知識(なくてもOK)"></div>
+    <div class="ed-region-head">対応する都道府県(タップで選ぶ・複数OK)</div>
+    <div class="ed-prefs" id="ed-prefs"></div>
+    <div style="text-align:center;margin-top:8px"><button class="ed-btn" id="ed-add-btn">この項目を足す</button></div>
+  </div>
+
+  <div class="ed-list">
+    <h2 style="font-size:15px;color:#ffd980">足した項目(タップで消せます)</h2>
+    <div id="ed-custom-list"></div>
+  </div>
+
+  <div class="ed-panel" style="text-align:center">
+    <h2>② バックアップ(他の端末へ移すとき)</h2>
+    <button class="ed-btn sub" id="ed-export-btn">じぶんのちしきを保存(ファイル)</button>
+    <button class="ed-btn sub" id="ed-import-btn">ファイルから読みこむ</button>
+    <input type="file" id="ed-import-file" accept="application/json,.json" style="display:none">
+  </div>
+
+  <button id="editor-close-btn">とじる</button>
+</div>
+
+<!-- 起死回生アイテム: クイズ画面 -->
+<div id="quiz-overlay" class="overlay hidden">
+  <h1>🧠 ちしきのちから</h1>
+  <p style="font-size:13px">せいかいすると、下から3行がまとめて消える!</p>
+  <div id="quiz-question"></div>
+  <div id="quiz-choices"></div>
+  <p id="quiz-feedback"></p>
+  <button id="quiz-cancel-btn" style="background:#46608f;color:#fff;box-shadow:0 4px 0 #2d3f61">やめる(アイテムはへらない)</button>
 </div>
 
 <!-- 達成バッジ一覧(config.js の BADGES から自動生成) -->
@@ -523,6 +640,36 @@ const DIR_DC = [0, 1, 0, -1];
 const $ = id => document.getElementById(id);
 const boardEl = $("board"), boardWrap = $("board-wrap"), nextEl = $("next");
 
+// ── ユーザーが画面から足した「じぶんのちしき」を、正式データに合流させる ──
+// (localStorage に保存。data.js を書きかえずに項目・種別を追加できる仕組み)
+const CUSTOM_KEY = CONFIG.STORAGE_PREFIX + "custom";
+function loadCustomData() {
+  try {
+    const v = JSON.parse(localStorage.getItem(CUSTOM_KEY));
+    if (v && Array.isArray(v.types) && Array.isArray(v.features)) return v;
+  } catch (e) {}
+  return { types: [], features: [] };
+}
+function injectCustomData() {
+  const c = loadCustomData();
+  const knownType = new Set(GEO_DATA.featureTypes.map(t => t.id));
+  const knownPref = new Set(GEO_DATA.prefectures.map(p => p.id));
+  for (const t of c.types) {
+    if (!t || !t.id || knownType.has(t.id)) continue;
+    GEO_DATA.featureTypes.push({ id: t.id, label: t.label || "その他",
+      color: t.color || "#9e9e9e", icon: t.icon || "◆", factTemplate: t.factTemplate || "{pref}にある" });
+    knownType.add(t.id);
+  }
+  for (const f of c.features) {
+    if (!f || !f.id || !f.name || !knownType.has(f.type)) continue;
+    const prefs = (f.prefs || []).filter(p => knownPref.has(p));
+    if (prefs.length === 0) continue;
+    GEO_DATA.features.push({ id: f.id, name: f.name, kana: f.kana || f.name,
+      type: f.type, prefectures: prefs, note: f.note || "", custom: true });
+  }
+}
+injectCustomData();
+
 // ── データの索引(id で引けるようにする) ─────────
 const typeById = new Map(GEO_DATA.featureTypes.map(t => [t.id, t]));
 const prefById = new Map(GEO_DATA.prefectures.map(p => [p.id, p]));
@@ -541,6 +688,9 @@ let softDrop = false;     // ▼を押している間 true
 let lastFall = 0;         // 最後に1マス落ちた時刻
 let lockUntil = null;     // 接地中: この時刻になったら固定する
 let uidSeq = 0;
+let timeLeft = 0;         // のこり時間(秒)。チャレンジのみ
+let timed = false;        // この回が時間制か
+let lastTimerNow = 0;     // 時間を減らす計算に使う前回時刻
 
 // ── localStorage への保存/読み込み(壊れていても落ちないように) ──
 function loadStore(key, fallback) {
@@ -553,9 +703,38 @@ function saveStore(key, value) {
   try { localStorage.setItem(CONFIG.STORAGE_PREFIX + key, JSON.stringify(value)); } catch (e) {}
 }
 
+// ============================================================
+// あそぶ人(ユーザー): 兄弟それぞれで、ずかん・バッジ・ハイスコアを別々に記録する
+// ============================================================
+let users = loadStore("users", null);
+let activeUserId = loadStore("activeUser", null);
+
+// はじめての起動: 「プレイヤー1」を作り、今までの記録をそのまま引きつぐ
+if (!Array.isArray(users) || users.length === 0) {
+  users = [{ id: 1, name: "プレイヤー1" }];
+  activeUserId = 1;
+  try {
+    for (const k of ["zukan", "badges", "hiscore", "mode", "level", "speed", "quizCorrect"]) {
+      const old = localStorage.getItem(CONFIG.STORAGE_PREFIX + k);
+      if (old !== null) {
+        localStorage.setItem(CONFIG.STORAGE_PREFIX + "u1:" + k, old);
+        localStorage.removeItem(CONFIG.STORAGE_PREFIX + k);
+      }
+    }
+  } catch (e) {}
+  saveStore("users", users);
+  saveStore("activeUser", activeUserId);
+}
+if (!users.some(u => u.id === activeUserId)) activeUserId = users[0].id;
+
+// ユーザーごとの保存キーを作る(例: "u1:zukan")
+const uk = key => "u" + activeUserId + ":" + key;
+
 // おぼえたずかん: 消去に成功した組み合わせの累計(ページを閉じても残る)
 // キーは「地形id:県id」、地図記号は「map:記号id」
-let zukan = loadStore("zukan", {});
+let zukan = loadStore(uk("zukan"), {});
+// ちしきのちからのクイズに正解した累計回数(バッジ判定用)
+let quizCorrectTotal = loadStore(uk("quizCorrect"), 0);
 
 // ============================================================
 // 効果音(Web Audio。外部ファイル不要の簡単な音。いつでもミュート可)
@@ -586,7 +765,8 @@ const sfx = {
   lock:   () => beep(150, 0.10, "triangle", 0.12),
   clear:  (chain) => { const b = 520 + (chain - 1) * 120; beep(b, 0.12, "sine", 0.16); beep(b * 1.5, 0.14, "sine", 0.10, 0.05); },
   gameover: () => [440, 349, 262].forEach((f, i) => beep(f, 0.32, "sawtooth", 0.13, i * 0.16)),
-  badge:  () => [523, 659, 784, 1047].forEach((f, i) => beep(f, 0.2, "triangle", 0.16, i * 0.1))
+  badge:  () => [523, 659, 784, 1047].forEach((f, i) => beep(f, 0.2, "triangle", 0.16, i * 0.1)),
+  item:   () => { beep(700, 0.09, "triangle", 0.14); beep(1050, 0.12, "triangle", 0.12, 0.07); }
 };
 
 function updateSoundButtons() {
@@ -603,7 +783,7 @@ function toggleSound() {
 // ============================================================
 // 達成バッジ(目標)。条件を満たすと自動で獲得し、ポップアップで知らせる
 // ============================================================
-let earnedBadges = loadStore("badges", {});
+let earnedBadges = loadStore(uk("badges"), {});
 let maxClearAtOnce = 0;  // この回で一度に消した最大数(バッジ判定用)
 const badgeToastQueue = [];
 let badgeToastBusy = false;
@@ -641,6 +821,7 @@ function badgeMet(b) {
     case "chain":        return maxChain >= b.value;
     case "multi":        return maxClearAtOnce >= b.value;
     case "score":        return score >= b.value;
+    case "quizCount":    return quizCorrectTotal >= b.value;
     case "collectAll":   return collectAllMet(b.target);
     default: return false;
   }
@@ -652,7 +833,7 @@ function checkBadges() {
     if (earnedBadges[b.id]) continue;
     if (badgeMet(b)) { earnedBadges[b.id] = true; changed = true; badgeToastQueue.push(b); }
   }
-  if (changed) { saveStore("badges", earnedBadges); if (!badgeToastBusy) showNextBadgeToast(); }
+  if (changed) { saveStore(uk("badges"), earnedBadges); if (!badgeToastBusy) showNextBadgeToast(); }
 }
 function showNextBadgeToast() {
   const b = badgeToastQueue.shift();
@@ -759,7 +940,12 @@ function partnerCandidates(kind) {
   return out;
 }
 
-function drawBlockInfo() {
+function drawBlockInfo(allowItem) {
+  // 🧠ブロック: ときどき混ざって落ちてくる(持てる上限に達しているときは出ない)
+  if (allowItem !== false && quizItems < CONFIG.QUIZ_ITEM_MAX &&
+      Math.random() < CONFIG.ITEM_BLOCK_CHANCE) {
+    return { kind: "item", data: { id: "__item", name: "ちしきのちから" } };
+  }
   // 地形1 : 県 PREF_RATIO の割合で種類を決める
   const prefProb = CONFIG.PREF_RATIO / (1 + CONFIG.PREF_RATIO);
   const kind = Math.random() < prefProb ? "pref" : "feature";
@@ -773,6 +959,7 @@ function drawBlockInfo() {
 }
 
 function isCorrectCombo(a, b) {
+  if (a.kind === "item" || b.kind === "item") return false;  // 🧠ブロックは組にならない
   if (a.kind === b.kind) return false;
   // 地図記号モード: 記号ブロックと意味ブロックが同じ記号なら正解
   if (pools && pools.mode === "mapsym") return a.data.id === b.data.id;
@@ -783,9 +970,9 @@ function isCorrectCombo(a, b) {
 
 function makePair() {
   const a = drawBlockInfo();
-  let b = drawBlockInfo();
+  let b = drawBlockInfo(a.kind !== "item");   // 1組に🧠は1つまで
   let guard = 0;
-  while (isCorrectCombo(a, b) && guard++ < 100) b = drawBlockInfo(); // 正解ペアは引き直し
+  while (isCorrectCombo(a, b) && guard++ < 100) b = drawBlockInfo(a.kind !== "item"); // 正解ペアは引き直し
   return [a, b];
 }
 
@@ -809,6 +996,12 @@ function createBlockEl(info, mini) {
   const el = document.createElement("div");
   el.className = "block" + (info.kind === "pref" ? " pref" : "") + (mini ? " mini" : "");
   const d = info.data;
+  // 🧠アイテムブロック: 正解ペアをとなりで消すと回収できる
+  if (info.kind === "item") {
+    el.classList.add("item");
+    el.innerHTML = `<span class="item-icon">🧠</span><span class="item-label">アイテム</span>`;
+    return el;
+  }
   // 地図記号モードの記号ブロック: 名前は見せず、記号の絵だけ(何の記号か考えるのがクイズ)
   if (pools && pools.mode === "mapsym" && info.kind === "feature") {
     el.classList.add("pref", "symbol");
@@ -996,6 +1189,7 @@ async function resolveBoard() {
     if (blocks.size > maxClearAtOnce) maxClearAtOnce = blocks.size;
     sfx.clear(chain);
     showScoreFloat(blocks, score - before);
+    collectItemBlocks(blocks);          // となりの🧠ブロックを回収(アイテム+1)
     queueFacts(edges);
     addLog(edges);
     await animateClear(blocks);
@@ -1020,12 +1214,33 @@ function showScoreFloat(blocks, gained) {
   setTimeout(() => el.remove(), 950);
 }
 
+// 消えるブロックの上下左右にある🧠ブロックを回収する(いっしょに消えてアイテム+1)
+function collectItemBlocks(blocks) {
+  const collected = [];
+  for (const b of blocks) {
+    const around = [[b.row - 1, b.col], [b.row + 1, b.col], [b.row, b.col - 1], [b.row, b.col + 1]];
+    for (const [r, c] of around) {
+      if (r < 0 || r >= TOTAL_ROWS || c < 0 || c >= COLS) continue;
+      const nb = board[r][c];
+      if (nb && nb.kind === "item" && !blocks.has(nb) && collected.indexOf(nb) < 0) collected.push(nb);
+    }
+  }
+  if (collected.length === 0) return;
+  for (const nb of collected) blocks.add(nb);   // いっしょに消える
+  quizItems = Math.min(quizItems + collected.length, CONFIG.QUIZ_ITEM_MAX);
+  updateItemButton();
+  sfx.item();
+}
+
 // スコア計算: 基本点 × 連鎖倍率 + 同時消しボーナス(config で調整可)
 function addScore(count, chain) {
   const mul = CONFIG.CHAIN_MULTIPLIER[Math.min(chain - 1, CONFIG.CHAIN_MULTIPLIER.length - 1)];
   score += count * CONFIG.BASE_SCORE * mul;
   if (count >= 3) score += (count - 2) * CONFIG.MULTI_BONUS;
   blocksCleared += count;
+  rechargeQuizItem();
+  // ブロックを消すと時間がのびる(消した数ぶん)
+  if (timed) { timeLeft = Math.min(timeLeft + count * CONFIG.TIME_BONUS_PER_BLOCK, CONFIG.TIME_MAX_SEC); updateTimeDisplay(); }
   $("score").textContent = score;
 }
 
@@ -1081,7 +1296,7 @@ function queueFacts(edges) {
     const zkey = pools.mode === "mapsym" ? "map:" + e.feature.id : key;
     zukan[zkey] = (zukan[zkey] || 0) + 1;
   }
-  saveStore("zukan", zukan);
+  saveStore(uk("zukan"), zukan);
   if (!factTimer) nextFact();
 }
 
@@ -1259,6 +1474,18 @@ function renderNext() {
 // ============================================================
 function frame(now) {
   requestAnimationFrame(frame);
+
+  // 時間制: プレイ中だけ時間を減らす(ポーズ・クイズ中は止まる)
+  const dt = lastTimerNow ? (now - lastTimerNow) / 1000 : 0;
+  lastTimerNow = now;
+  if (timed && state === "playing") {
+    timeLeft -= dt;
+    if (timeLeft <= 0) {
+      timeLeft = 0; updateTimeDisplay();
+      if (!busy) { gameOver("じかんぎれ!"); return; }   // 消去中は落ち着いてから
+    } else updateTimeDisplay();
+  }
+
   if (state !== "playing" || busy || !piece) { lastFall = now; return; }
 
   // 接地中: 猶予時間が切れたら固定。動かして下が空いたら落下再開
@@ -1275,6 +1502,13 @@ function frame(now) {
     if (canFall()) { piece.row++; updatePiecePos(); }
     else lockUntil = now + CONFIG.LOCK_DELAY_MS;   // 接地 → 固定までの猶予
   }
+}
+
+// のこり時間の表示を更新(少なくなると赤くなる)
+function updateTimeDisplay() {
+  if (!timed) { $("time").textContent = "∞"; $("time-stat").classList.remove("low"); return; }
+  $("time").textContent = Math.ceil(timeLeft);
+  $("time-stat").classList.toggle("low", timeLeft <= 10);
 }
 
 // ============================================================
@@ -1357,6 +1591,127 @@ $("sound-btn").addEventListener("click", toggleSound);
 $("title-sound-btn").addEventListener("click", toggleSound);
 
 // ============================================================
+// ちしき編集画面: data.js を書きかえずに、画面から項目・種別を足す
+// ============================================================
+let editorDirty = false;   // 変更したらリロードして反映
+
+function saveCustom(c) { try { localStorage.setItem(CUSTOM_KEY, JSON.stringify(c)); } catch (e) {} }
+
+function buildEditor() {
+  // しゅるいの選択肢(今ある種別ぜんぶ + 「あたらしいなかまを作る」)
+  const sel = $("ed-type");
+  sel.innerHTML = "";
+  for (const t of GEO_DATA.featureTypes) {
+    const o = document.createElement("option"); o.value = t.id; o.textContent = t.label; sel.appendChild(o);
+  }
+  const o = document.createElement("option"); o.value = "__new"; o.textContent = "＋ あたらしいなかまを作る"; sel.appendChild(o);
+  sel.onchange = () => $("ed-newtype-fields").classList.toggle("show", sel.value === "__new");
+  $("ed-newtype-fields").classList.remove("show");
+
+  // 都道府県のチェック(地方ごとに並べる)
+  const box = $("ed-prefs");
+  box.innerHTML = "";
+  for (const p of GEO_DATA.prefectures) {
+    const lab = document.createElement("label");
+    const cb = document.createElement("input"); cb.type = "checkbox"; cb.value = p.id;
+    cb.addEventListener("change", () => lab.classList.toggle("on", cb.checked));
+    const span = document.createElement("span"); span.textContent = p.name.replace(/[都府県]$/, "");
+    lab.append(cb, span); box.appendChild(lab);
+  }
+  renderCustomList();
+}
+
+function renderCustomList() {
+  const c = loadCustomData();
+  const list = $("ed-custom-list");
+  list.innerHTML = "";
+  if (c.features.length === 0) {
+    list.innerHTML = '<div class="ed-note-hint" style="padding:8px">まだありません。上のフォームから足せます。</div>';
+    return;
+  }
+  for (const f of c.features) {
+    // 種別は、正式マスタ+今作ったばかりのカスタム種別の両方から探す
+    const t = GEO_DATA.featureTypes.find(x => x.id === f.type) || c.types.find(x => x.id === f.type);
+    const item = document.createElement("div"); item.className = "ed-item";
+    const sw = document.createElement("span"); sw.className = "ei-sw";
+    if (t) { sw.style.background = t.color; sw.style.color = textColorFor(t.color); sw.textContent = t.icon; }
+    const txt = document.createElement("span");
+    const prefNames = (f.prefs || []).map(pid => { const p = prefById.get(pid); return p ? p.name.replace(/[都府県]$/, "") : "?"; }).join("・");
+    txt.innerHTML = `<b>${f.name}</b>(${t ? t.label : "?"})<br><span style="font-size:11px;color:#bcd">${prefNames}</span>`;
+    const del = document.createElement("button"); del.className = "ei-del"; del.textContent = "消す";
+    del.addEventListener("click", () => {
+      const cur = loadCustomData();
+      cur.features = cur.features.filter(x => x.id !== f.id);
+      saveCustom(cur); editorDirty = true; renderCustomList();
+    });
+    item.append(sw, txt, del); list.appendChild(item);
+  }
+}
+
+$("ed-add-btn").addEventListener("click", () => {
+  const name = $("ed-name").value.trim();
+  const kana = $("ed-kana").value.trim();
+  const note = $("ed-note").value.trim();
+  const prefs = [...$("ed-prefs").querySelectorAll("input:checked")].map(cb => cb.value);
+  if (!name) { alert("名まえを入れてください"); return; }
+  if (prefs.length === 0) { alert("対応する都道府県を1つ以上えらんでください"); return; }
+  const c = loadCustomData();
+  let typeId = $("ed-type").value;
+  if (typeId === "__new") {                    // あたらしいなかま(種別)を作る
+    const label = $("ed-nt-label").value.trim();
+    if (!label) { alert("あたらしいなかまの名を入れてください"); return; }
+    typeId = "ct_" + Date.now().toString(36);
+    c.types.push({ id: typeId, label,
+      icon: $("ed-nt-icon").value.trim() || "◆",
+      color: $("ed-nt-color").value || "#26c6da",
+      factTemplate: "{pref}にある" });
+  }
+  c.features.push({ id: "cf_" + Date.now().toString(36) + Math.floor(Math.random() * 100),
+    type: typeId, name, kana: kana || name, prefs, note });
+  saveCustom(c); editorDirty = true;
+  // フォームをリセット
+  $("ed-name").value = ""; $("ed-kana").value = ""; $("ed-note").value = "";
+  $("ed-nt-label").value = ""; $("ed-nt-icon").value = "";
+  $("ed-prefs").querySelectorAll("input:checked").forEach(cb => { cb.checked = false; cb.parentElement.classList.remove("on"); });
+  buildEditor();
+  alert("「" + name + "」を足しました!(とじると反映されます)");
+});
+
+// バックアップ: 保存(ダウンロード)
+$("ed-export-btn").addEventListener("click", () => {
+  const data = JSON.stringify(loadCustomData(), null, 2);
+  const blob = new Blob([data], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "geo-puzzle-ちしき.json";
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+});
+// バックアップ: 読みこみ(ファイル)
+$("ed-import-btn").addEventListener("click", () => $("ed-import-file").click());
+$("ed-import-file").addEventListener("change", e => {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const v = JSON.parse(reader.result);
+      if (!v || !Array.isArray(v.types) || !Array.isArray(v.features)) throw new Error("形式ちがい");
+      if (!confirm("読みこむと、今のじぶんのちしきは上書きされます。よろしいですか?")) return;
+      saveCustom(v); editorDirty = true; buildEditor();
+      alert("読みこみました!(とじると反映されます)");
+    } catch (err) { alert("このファイルは読みこめませんでした。"); }
+  };
+  reader.readAsText(file);
+  e.target.value = "";
+});
+
+$("editor-btn").addEventListener("click", () => { editorDirty = false; buildEditor(); $("editor-overlay").classList.remove("hidden"); });
+$("editor-close-btn").addEventListener("click", () => {
+  $("editor-overlay").classList.add("hidden");
+  if (editorDirty) location.reload();          // 追加を反映するため読み直す
+});
+
+// ============================================================
 // おぼえたずかん(累計の学習記録。地形×県の集めた組み合わせを一覧表示)
 // ============================================================
 function renderZukan() {
@@ -1428,10 +1783,128 @@ $("zukan-close-btn").addEventListener("click", () => $("zukan-overlay").classLis
 $("zukan-reset-btn").addEventListener("click", () => {
   if (confirm("ずかんのきろくをぜんぶ消しますか?(もとにもどせません)")) {
     zukan = {};
-    saveStore("zukan", zukan);
+    saveStore(uk("zukan"), zukan);
     renderZukan();
   }
 });
+
+// ============================================================
+// 起死回生アイテム「ちしきのちから」
+// クイズに正解すると盤面の下の行がまとめて消える(知識でピンチを切りぬける)
+// ============================================================
+let quizItems = 0;         // いま持っている個数
+let quizRechargeStep = 0;  // 消したブロック数による補充の進み
+let quizAnswer = null;     // 今のクイズの正解(文字列)
+let quizEdge = null;       // 正解時にずかん・豆知識へ記録する組
+
+function updateItemButton() {
+  const btn = $("quiz-item-btn");
+  btn.textContent = "🧠 ×" + quizItems;
+  btn.disabled = !(state === "playing" && quizItems > 0);
+}
+
+// ブロックを消すたびに呼ばれる。一定数ごとにアイテムを1個補充
+function rechargeQuizItem() {
+  const step = Math.floor(blocksCleared / CONFIG.QUIZ_ITEM_EVERY_BLOCKS);
+  if (step > quizRechargeStep) {
+    quizItems = Math.min(quizItems + (step - quizRechargeStep), CONFIG.QUIZ_ITEM_MAX);
+    quizRechargeStep = step;
+    updateItemButton();
+  }
+}
+
+const shuffle = arr => {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+};
+
+// 出題を作る(地形モード: 地形→正しい県 / 地図記号モード: 記号の絵→名前)
+function buildQuiz() {
+  const qEl = $("quiz-question"), cEl = $("quiz-choices");
+  cEl.innerHTML = "";
+  $("quiz-feedback").textContent = "";
+  let choices;
+  if (pools.mode === "mapsym") {
+    const s = randomOf(pools.features);
+    qEl.innerHTML = `この地図記号はどれ?<div style="margin-top:10px">${symbolSvg(s)}</div>`;
+    quizAnswer = s.name;
+    quizEdge = { feature: s, pref: s };
+    const wrong = shuffle(pools.features.filter(x => x.id !== s.id)).slice(0, 3).map(x => x.name);
+    choices = shuffle([s.name, ...wrong]);
+  } else {
+    const f = randomOf(pools.features);
+    const correctPref = prefById.get(randomOf(f.prefectures));
+    qEl.textContent = `「${f.name}(${f.kana})」と組になれる都道府県はどれ?`;
+    quizAnswer = correctPref.name;
+    quizEdge = { feature: f, pref: correctPref };
+    // まちがい選択肢は「正解ではない県」から選ぶ
+    const wrong = shuffle(GEO_DATA.prefectures.filter(p => !f.prefectures.includes(p.id)))
+      .slice(0, 3).map(p => p.name);
+    choices = shuffle([correctPref.name, ...wrong]);
+  }
+  for (const c of choices) {
+    const b = document.createElement("button");
+    b.textContent = c;
+    b.addEventListener("click", () => answerQuiz(b, c));
+    cEl.appendChild(b);
+  }
+}
+
+function openQuiz() {
+  if (state !== "playing" || busy || quizItems <= 0) return;
+  state = "quiz";                       // ゲームを止めてクイズへ
+  buildQuiz();
+  $("quiz-cancel-btn").textContent = "やめる(アイテムはへらない)";
+  $("quiz-overlay").classList.remove("hidden");
+}
+
+function resumeFromQuiz() {
+  $("quiz-overlay").classList.add("hidden");
+  state = "playing";
+  lastFall = performance.now();
+  if (lockUntil !== null) lockUntil = performance.now() + CONFIG.LOCK_DELAY_MS;
+  updateItemButton();
+}
+
+async function answerQuiz(btn, choice) {
+  if (state !== "quiz" || quizAnswer === null) return;
+  const correct = choice === quizAnswer;
+  quizAnswer = null;                    // 二重回答を防ぐ
+  quizItems--;
+  for (const b of $("quiz-choices").querySelectorAll("button")) b.disabled = true;
+  btn.style.background = correct ? "#2e7d32" : "#b3261e";
+  if (correct) {
+    quizCorrectTotal++;
+    saveStore(uk("quizCorrect"), quizCorrectTotal);
+    $("quiz-feedback").textContent = "🎉 せいかい!";
+    sfx.badge();
+    await sleep(750);
+    resumeFromQuiz();
+    // 下の行をまとめて消す(得点は入らない。生きのこるためのアイテム)
+    busy = true;
+    const blocks = new Set();
+    for (let r = TOTAL_ROWS - 1; r >= TOTAL_ROWS - CONFIG.QUIZ_CLEAR_ROWS; r--)
+      for (let c = 0; c < COLS; c++) if (board[r][c]) blocks.add(board[r][c]);
+    if (blocks.size > 0) { await animateClear(blocks); await applyGravity(); }
+    queueFacts([quizEdge]);             // 正解した知識はずかん・豆知識にも記録
+    updateHints();
+    checkBadges();
+    busy = false;
+    lastFall = performance.now();
+  } else {
+    beep(180, 0.3, "sawtooth", 0.12);
+    const answer = pools.mode === "mapsym" ? quizEdge.feature.name : quizEdge.pref.name;
+    $("quiz-feedback").textContent = "ざんねん… せいかいは「" + answer + "」";
+    $("quiz-cancel-btn").textContent = "とじる";
+    updateItemButton();
+  }
+}
+
+$("quiz-item-btn").addEventListener("click", openQuiz);
+$("quiz-cancel-btn").addEventListener("click", () => { if (state === "quiz") resumeFromQuiz(); });
 
 // ============================================================
 // ゲームの開始・リセット
@@ -1452,6 +1925,11 @@ function startGame() {
   piece = null; busy = false; softDrop = false; lockUntil = null;
   // スコア・統計・連鎖・きろく・ファクト表示と履歴をリセット
   score = 0; piecesPlaced = 0; maxChain = 0; blocksCleared = 0; maxClearAtOnce = 0;
+  quizItems = CONFIG.QUIZ_ITEM_START; quizRechargeStep = 0;
+  // 時間制はチャレンジモードのみ(練習は無制限)
+  timed = CONFIG.TIME_LIMIT_ENABLED && !isPractice();
+  timeLeft = CONFIG.TIME_LIMIT_SEC;
+  updateTimeDisplay();
   $("score").textContent = "0"; $("chain").textContent = "-";
   recentLog.length = 0;
   $("log").innerHTML = "けしたペアが<br>ここに出ます";
@@ -1461,6 +1939,7 @@ function startGame() {
   spawnPiece();
   state = "playing";
   lastFall = performance.now();
+  updateItemButton();
 }
 
 // ゲームオーバー/終了 → リザルト(残ったブロックのヒント + この回のふりかえり)
@@ -1474,11 +1953,11 @@ function gameOver(title) {
   // ハイスコア(チャレンジモードのみ、レベルごとに保存)
   let hsLine = "";
   if (!isPractice()) {
-    const hs = loadStore("hiscore", {});
+    const hs = loadStore(uk("hiscore"), {});
     const prev = hs[String(selectedLevel)] || 0;
     if (score > prev) {
       hs[String(selectedLevel)] = score;
-      saveStore("hiscore", hs);
+      saveStore(uk("hiscore"), hs);
       hsLine = prev > 0 ? `🎉 ハイスコアこうしん!(これまで ${prev})` : "🎉 ハイスコアに登録!";
     } else if (prev > 0) {
       hsLine = `ハイスコア: ${prev}`;
@@ -1490,6 +1969,7 @@ function gameOver(title) {
   $("leftover-title").style.display = hintCount ? "" : "none";
   $("leftover-list").style.display = hintCount ? "" : "none";
   renderHistory($("result-list"));
+  updateItemButton();
   $("result-overlay").classList.remove("hidden");
 }
 
@@ -1501,7 +1981,7 @@ function renderLeftoverHints() {
   // 残っているブロックを種類ごとに数える(多く残ったものを優先して見せる)
   const featLeft = new Map(), prefLeft = new Map();
   for (const row of board) for (const b of row) {
-    if (!b) continue;
+    if (!b || b.kind === "item") continue;   // 🧠ブロックはヒント対象外
     const m = b.kind === "feature" ? featLeft : prefLeft;
     m.set(b.data.id, (m.get(b.data.id) || 0) + 1);
   }
@@ -1510,7 +1990,7 @@ function renderLeftoverHints() {
   if (pools.mode === "mapsym") {
     const left = new Map();
     for (const row of board) for (const b of row)
-      if (b) left.set(b.data.id, (left.get(b.data.id) || 0) + 1);
+      if (b && b.kind !== "item") left.set(b.data.id, (left.get(b.data.id) || 0) + 1);
     for (const [id] of [...left.entries()].sort((a, b) => b[1] - a[1])) {
       const s = pools.features.find(x => x.id === id);
       entries.push({ symId: s.id, main: `${s.name}(${s.kana})`, sub: s.note || "" });
@@ -1585,7 +2065,7 @@ function buildLevelSelect() {
       selectedLevel = i + 1;
       box.querySelectorAll("button").forEach(b => b.classList.remove("selected"));
       btn.classList.add("selected");
-      try { localStorage.setItem(CONFIG.STORAGE_PREFIX + "level", String(selectedLevel)); } catch (e) {}
+      saveStore(uk("level"), selectedLevel);
       updateTitleHiscore();
     });
     box.appendChild(btn);
@@ -1606,7 +2086,7 @@ function buildSpeedSelect() {
       selectedSpeedIdx = i;
       box.querySelectorAll("button").forEach(b => b.classList.remove("selected"));
       btn.classList.add("selected");
-      try { localStorage.setItem(CONFIG.STORAGE_PREFIX + "speed", String(i)); } catch (e) {}
+      saveStore(uk("speed"), i);
     });
     box.appendChild(btn);
   });
@@ -1629,15 +2109,79 @@ function buildModeSelect() {
       selectedMode = i;
       box.querySelectorAll("button").forEach(b => b.classList.remove("selected"));
       btn.classList.add("selected");
-      saveStore("mode", i);
+      saveStore(uk("mode"), i);
     });
     box.appendChild(btn);
   });
 }
 
+// ── タイトルの「あそぶ人」選択(兄弟で記録を分ける) ──
+function buildUserSelect() {
+  const box = $("user-select");
+  box.innerHTML = "";
+  for (const u of users) {
+    const btn = document.createElement("button");
+    btn.textContent = u.name.length > 6 ? u.name.slice(0, 6) + "…" : u.name;
+    if (u.id === activeUserId) btn.classList.add("selected");
+    btn.addEventListener("click", () => {
+      activeUserId = u.id;
+      saveStore("activeUser", activeUserId);
+      buildUserSelect();
+      loadUserData();        // その人のずかん・バッジ・設定に切り替える
+    });
+    box.appendChild(btn);
+  }
+  if (users.length < 4) {    // 4人まで追加できる
+    const add = document.createElement("button");
+    add.textContent = "＋";
+    add.title = "あそぶ人をふやす";
+    add.addEventListener("click", () => {
+      const name = (prompt("あそぶ人のなまえを入れてね(8文字まで)") || "").trim().slice(0, 8);
+      if (!name) return;
+      const id = Math.max(...users.map(u => u.id)) + 1;
+      users.push({ id, name });
+      saveStore("users", users);
+      activeUserId = id;
+      saveStore("activeUser", activeUserId);
+      buildUserSelect();
+      loadUserData();
+    });
+    box.appendChild(add);
+  }
+  // ✏️: いま選ばれている人の名前を変える(プレイヤー1もOK)
+  const ren = document.createElement("button");
+  ren.textContent = "✏️";
+  ren.title = "なまえを変える";
+  ren.addEventListener("click", () => {
+    const u = users.find(x => x.id === activeUserId);
+    const name = (prompt("あたらしいなまえを入れてね(8文字まで)", u.name) || "").trim().slice(0, 8);
+    if (!name) return;
+    u.name = name;
+    saveStore("users", users);
+    buildUserSelect();
+  });
+  box.appendChild(ren);
+}
+
+// いま選ばれている人の記録・設定を読み込み、画面に反映する
+function loadUserData() {
+  zukan = loadStore(uk("zukan"), {});
+  earnedBadges = loadStore(uk("badges"), {});
+  quizCorrectTotal = loadStore(uk("quizCorrect"), 0);
+  const lv = parseInt(loadStore(uk("level"), CONFIG.START_LEVEL), 10);
+  selectedLevel = (lv >= 1 && lv <= CONFIG.LEVELS.length) ? lv : CONFIG.START_LEVEL;
+  const sp = parseInt(loadStore(uk("speed"), CONFIG.DEFAULT_SPEED_OPTION), 10);
+  selectedSpeedIdx = (sp >= 0 && sp < CONFIG.SPEED_OPTIONS.length) ? sp : CONFIG.DEFAULT_SPEED_OPTION;
+  selectedMode = loadStore(uk("mode"), 0) === 1 ? 1 : 0;
+  buildLevelSelect();
+  buildModeSelect();
+  buildSpeedSelect();
+  updateTitleHiscore();
+}
+
 // タイトル画面に選択中レベルのハイスコアを表示する
 function updateTitleHiscore() {
-  const hs = loadStore("hiscore", {});
+  const hs = loadStore(uk("hiscore"), {});
   const v = hs[String(selectedLevel)];
   $("title-hiscore").textContent = v ? `Lv${selectedLevel} のハイスコア: ${v}` : "";
 }
@@ -1655,7 +2199,8 @@ document.addEventListener("keydown", e => {
     case "ArrowDown": softDrop = true; break;
     case " ": hardDrop(); break;
     case "Escape":
-      if (!$("history-overlay").classList.contains("hidden")) closeHistory();
+      if (state === "quiz") resumeFromQuiz();
+      else if (!$("history-overlay").classList.contains("hidden")) closeHistory();
       else if (!$("zukan-overlay").classList.contains("hidden")) $("zukan-overlay").classList.add("hidden");
       else if (!$("mapsym-overlay").classList.contains("hidden")) $("mapsym-overlay").classList.add("hidden");
       else if (!$("badge-overlay").classList.contains("hidden")) $("badge-overlay").classList.add("hidden");
@@ -1797,23 +2342,12 @@ window.addEventListener("orientationchange", () => setTimeout(layout, 100));
     $("data-error-overlay").classList.remove("hidden");
     return;
   }
-  // 前回選んだレベル・はやさ・モードを復元(なければ config の既定値)
-  try {
-    const saved = parseInt(localStorage.getItem(CONFIG.STORAGE_PREFIX + "level"), 10);
-    if (saved >= 1 && saved <= CONFIG.LEVELS.length) selectedLevel = saved;
-    const savedSpeed = parseInt(localStorage.getItem(CONFIG.STORAGE_PREFIX + "speed"), 10);
-    if (savedSpeed >= 0 && savedSpeed < CONFIG.SPEED_OPTIONS.length) selectedSpeedIdx = savedSpeed;
-  } catch (e) {}
-  const savedMode = loadStore("mode", 0);
-  if (savedMode === 0 || savedMode === 1) selectedMode = savedMode;
-  selectedLevel = Math.min(Math.max(selectedLevel, 1), CONFIG.LEVELS.length);
-  selectedSpeedIdx = Math.min(Math.max(selectedSpeedIdx, 0), CONFIG.SPEED_OPTIONS.length - 1);
-  $("title-level").textContent = "レベルとモードをえらんで「はじめる」を押してね";
-  buildLevelSelect();
-  buildModeSelect();
-  buildSpeedSelect();
-  updateTitleHiscore();
+  // あそぶ人を用意し、その人のレベル・はやさ・モード・記録を読み込む
+  $("title-level").textContent = "あそぶ人とレベルをえらんで「はじめる」を押してね";
+  buildUserSelect();
+  loadUserData();
   updateSoundButtons();
+  updateItemButton();
   document.documentElement.style.setProperty("--fall-ms", CONFIG.FALL_ANIM_MS + "ms");
   document.documentElement.style.setProperty("--clear-ms", CONFIG.CLEAR_ANIM_MS + "ms");
   layout();

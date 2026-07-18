@@ -51,6 +51,13 @@ const CONFIG = {
   // 大きくするほど消しやすい。0にすると完全ランダム(むずかしい)
   PARTNER_BIAS: 0.5,
 
+  // ── 時間制(チャレンジモード) ──────────────
+  // 練習モードは時間制なし(ゆっくり学べる)。チャレンジのみ持ち時間があり、0でゲームオーバー
+  TIME_LIMIT_ENABLED: true,   // false にすると時間制なし(前と同じ)
+  TIME_LIMIT_SEC: 60,         // ゲーム開始時の持ち時間(秒)
+  TIME_BONUS_PER_BLOCK: 1.5,  // ブロックを1個消すごとに増える秒数
+  TIME_MAX_SEC: 90,           // 時間の上限(秒)。これ以上は増えない
+
   // ── 開始レベル ─────────────────────────────
   START_LEVEL: 1,   // タイトル画面で最初に選ばれているレベル(画面からも変更できる)
 
@@ -104,6 +111,15 @@ const CONFIG = {
   SOUND_DEFAULT_ON: true,   // 最初から音を鳴らすか(画面のボタンでいつでも切りかえOK)
   SOUND_VOLUME: 0.18,       // 音の大きさ(0〜1)。うるさければ小さくする
 
+  // ── 起死回生アイテム「ちしきのちから」──────
+  // クイズに正解すると、盤面の下のほうの行がまとめて消える
+  QUIZ_ITEM_START: 1,          // ゲーム開始時に持っている個数
+  QUIZ_ITEM_EVERY_BLOCKS: 30,  // ブロックを何個消すごとに1個ふえるか
+  QUIZ_ITEM_MAX: 2,            // 一度に持てる最大数
+  QUIZ_CLEAR_ROWS: 3,          // 正解したとき下から何行消えるか
+  // 🧠ブロック: ときどき落ちてきて、正解ペアをとなりで消すと回収できる(アイテム+1)
+  ITEM_BLOCK_CHANCE: 0.05,     // ブロック1個が🧠になる確率(0.05=5%。持てる上限に達していると出ない)
+
   // ── 達成バッジ(目標)─────────────────────
   // 集めるとタイトルの「🏅 バッジ」に飾られる。条件を満たすと自動で獲得。
   // type の種類:
@@ -111,6 +127,7 @@ const CONFIG = {
   //   "chain"        … 1ゲームの最大連鎖が value 以上
   //   "multi"        … 一度に消した数が value 以上
   //   "score"        … スコアが value 以上
+  //   "quizCount"    … ちしきのちからのクイズに value 回正解
   //   "collectAll"   … target を全部集めた(target: "mapSymbols" / 種別id("river"等) / "all")
   // ★ここも自由に増やせる(名前・絵文字・条件を足すだけ)
   BADGES: [
@@ -123,6 +140,7 @@ const CONFIG = {
     { id: "score10k", name: "スコア王",     icon: "👑", type: "score",        value: 10000, desc: "スコア10000をこえる" },
     { id: "collect10", name: "ずかん見習い", icon: "📗", type: "collectCount", value: 10,    desc: "10種類おぼえる" },
     { id: "collect30", name: "ずかん博士",   icon: "📘", type: "collectCount", value: 30,    desc: "30種類おぼえる" },
+    { id: "quiz10",   name: "クイズ王",     icon: "🧠", type: "quizCount",    value: 10,    desc: "ちしきのちからのクイズに10回せいかいする" },
     { id: "rivers",   name: "川はかせ",     icon: "🌊", type: "collectAll",   target: "river",      desc: "すべての川を消す" },
     { id: "plains",   name: "平野はかせ",   icon: "🌾", type: "collectAll",   target: "plain",      desc: "すべての平野を消す" },
     { id: "mountains", name: "山はかせ",    icon: "⛰️", type: "collectAll",   target: "mountain",   desc: "すべての山地・山脈を消す" },
