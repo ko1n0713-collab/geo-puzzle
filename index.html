@@ -479,7 +479,7 @@
   </p>
 
   <div class="ed-panel">
-    <h2>① こうもく(川・平野・山など)を足す</h2>
+    <h2 id="ed-form-title">① こうもく(川・平野・山など)を足す</h2>
     <div class="ed-row">
       <label>しゅるい</label>
       <select id="ed-type"></select>
@@ -494,12 +494,16 @@
     <div class="ed-row"><label>びこう</label><input id="ed-note" placeholder="消したとき出る豆知識(なくてもOK)"></div>
     <div class="ed-region-head">対応する都道府県(タップで選ぶ・複数OK)</div>
     <div class="ed-prefs" id="ed-prefs"></div>
-    <div style="text-align:center;margin-top:8px"><button class="ed-btn" id="ed-add-btn">この項目を足す</button></div>
+    <div style="text-align:center;margin-top:8px">
+      <button class="ed-btn" id="ed-add-btn">この項目を足す</button>
+      <button class="ed-btn sub" id="ed-cancel-edit" style="display:none">やめる</button>
+    </div>
   </div>
 
   <div class="ed-list">
-    <h2 style="font-size:15px;color:#ffd980">足した項目(タップで消せます)</h2>
-    <div id="ed-custom-list"></div>
+    <h2 style="font-size:15px;color:#ffd980">② ぜんぶの知識(タップでなおせます)</h2>
+    <p class="ed-note-hint">なおすと ✎ が付きます。「もどす」で元にもどせます。自分で足したものは「消す」で消せます。</p>
+    <div id="ed-all-list"></div>
   </div>
 
   <div class="ed-panel" style="text-align:center">
@@ -643,29 +647,50 @@ const boardEl = $("board"), boardWrap = $("board-wrap"), nextEl = $("next");
 // ── ユーザーが画面から足した「じぶんのちしき」を、正式データに合流させる ──
 // (localStorage に保存。data.js を書きかえずに項目・種別を追加できる仕組み)
 const CUSTOM_KEY = CONFIG.STORAGE_PREFIX + "custom";
+// data.js の元データを保存しておく(編集を「もとにもどす」ために使う)
+const BASE_FEATURES = GEO_DATA.features.map(f => ({ id: f.id, name: f.name, kana: f.kana,
+  type: f.type, prefectures: f.prefectures.slice(), note: f.note || "" }));
 function loadCustomData() {
   try {
     const v = JSON.parse(localStorage.getItem(CUSTOM_KEY));
-    if (v && Array.isArray(v.types) && Array.isArray(v.features)) return v;
+    if (v && Array.isArray(v.types) && Array.isArray(v.features)) {
+      if (!v.overrides || typeof v.overrides !== "object") v.overrides = {};
+      return v;
+    }
   } catch (e) {}
-  return { types: [], features: [] };
+  return { types: [], features: [], overrides: {} };
 }
 function injectCustomData() {
   const c = loadCustomData();
   const knownType = new Set(GEO_DATA.featureTypes.map(t => t.id));
   const knownPref = new Set(GEO_DATA.prefectures.map(p => p.id));
+  // ① あたらしい種別
   for (const t of c.types) {
     if (!t || !t.id || knownType.has(t.id)) continue;
     GEO_DATA.featureTypes.push({ id: t.id, label: t.label || "その他",
       color: t.color || "#9e9e9e", icon: t.icon || "◆", factTemplate: t.factTemplate || "{pref}にある" });
     knownType.add(t.id);
   }
+  // ② あたらしい項目
   for (const f of c.features) {
     if (!f || !f.id || !f.name || !knownType.has(f.type)) continue;
     const prefs = (f.prefs || []).filter(p => knownPref.has(p));
     if (prefs.length === 0) continue;
     GEO_DATA.features.push({ id: f.id, name: f.name, kana: f.kana || f.name,
       type: f.type, prefectures: prefs, note: f.note || "", custom: true });
+  }
+  // ③ すでにある項目の編集(オーバーライドを上書き適用)
+  for (const f of GEO_DATA.features) {
+    const o = c.overrides[f.id];
+    if (!o) continue;
+    if (o.name) f.name = o.name;
+    if (o.kana) f.kana = o.kana;
+    if (o.note !== undefined) f.note = o.note;
+    if (o.type && knownType.has(o.type)) f.type = o.type;
+    if (Array.isArray(o.prefs)) {
+      const prefs = o.prefs.filter(p => knownPref.has(p));
+      if (prefs.length > 0) f.prefectures = prefs;
+    }
   }
 }
 injectCustomData();
@@ -1593,22 +1618,51 @@ $("title-sound-btn").addEventListener("click", toggleSound);
 // ============================================================
 // ちしき編集画面: data.js を書きかえずに、画面から項目・種別を足す
 // ============================================================
-let editorDirty = false;   // 変更したらリロードして反映
+let editorDirty = false;    // 変更したらリロードして反映
+let editingId = null;       // 編集中の項目id(null=新規追加モード)
 
 function saveCustom(c) { try { localStorage.setItem(CUSTOM_KEY, JSON.stringify(c)); } catch (e) {} }
+
+// 種別を、正式マスタ+カスタムの両方から探す
+function typeLookup(id) {
+  const c = loadCustomData();
+  return GEO_DATA.featureTypes.find(x => x.id === id) || c.types.find(x => x.id === id);
+}
+
+// いまの「効き目のある」全項目(元データ+編集+追加)を計算して返す
+function effectiveList() {
+  const c = loadCustomData();
+  const out = [];
+  for (const bf of BASE_FEATURES) {
+    const o = c.overrides[bf.id] || {};
+    out.push({ id: bf.id, custom: false, edited: !!c.overrides[bf.id],
+      type: (o.type && typeLookup(o.type)) ? o.type : bf.type,
+      name: o.name || bf.name, kana: o.kana || bf.kana,
+      note: o.note !== undefined ? o.note : (bf.note || ""),
+      prefs: (Array.isArray(o.prefs) && o.prefs.length) ? o.prefs : bf.prefectures });
+  }
+  for (const cf of c.features) {
+    out.push({ id: cf.id, custom: true, edited: true, type: cf.type,
+      name: cf.name, kana: cf.kana, note: cf.note || "", prefs: cf.prefs || [] });
+  }
+  return out;
+}
 
 function buildEditor() {
   // しゅるいの選択肢(今ある種別ぜんぶ + 「あたらしいなかまを作る」)
   const sel = $("ed-type");
+  const c = loadCustomData();
+  const seen = new Set();
   sel.innerHTML = "";
-  for (const t of GEO_DATA.featureTypes) {
+  for (const t of [...GEO_DATA.featureTypes, ...c.types]) {
+    if (seen.has(t.id)) continue; seen.add(t.id);
     const o = document.createElement("option"); o.value = t.id; o.textContent = t.label; sel.appendChild(o);
   }
-  const o = document.createElement("option"); o.value = "__new"; o.textContent = "＋ あたらしいなかまを作る"; sel.appendChild(o);
+  const on = document.createElement("option"); on.value = "__new"; on.textContent = "＋ あたらしいなかまを作る"; sel.appendChild(on);
   sel.onchange = () => $("ed-newtype-fields").classList.toggle("show", sel.value === "__new");
   $("ed-newtype-fields").classList.remove("show");
 
-  // 都道府県のチェック(地方ごとに並べる)
+  // 都道府県のチェック
   const box = $("ed-prefs");
   box.innerHTML = "";
   for (const p of GEO_DATA.prefectures) {
@@ -1618,35 +1672,87 @@ function buildEditor() {
     const span = document.createElement("span"); span.textContent = p.name.replace(/[都府県]$/, "");
     lab.append(cb, span); box.appendChild(lab);
   }
-  renderCustomList();
+  resetFormToAdd();
+  renderAllList();
 }
 
-function renderCustomList() {
+// フォームを新規追加モードにもどす
+function resetFormToAdd() {
+  editingId = null;
+  $("ed-form-title").textContent = "① こうもく(川・平野・山など)を足す";
+  $("ed-add-btn").textContent = "この項目を足す";
+  $("ed-cancel-edit").style.display = "none";
+  $("ed-type").value = GEO_DATA.featureTypes[0].id;
+  $("ed-newtype-fields").classList.remove("show");
+  $("ed-name").value = ""; $("ed-kana").value = ""; $("ed-note").value = "";
+  $("ed-nt-label").value = ""; $("ed-nt-icon").value = "";
+  $("ed-prefs").querySelectorAll("input").forEach(cb => { cb.checked = false; cb.parentElement.classList.remove("on"); });
+}
+
+// 既存項目を編集モードで開く(フォームに現在の内容を入れる)
+function startEdit(id) {
+  const v = effectiveList().find(x => x.id === id);
+  if (!v) return;
+  editingId = id;
+  $("ed-form-title").textContent = "「" + v.name + "」をなおす";
+  $("ed-add-btn").textContent = "なおして保存";
+  $("ed-cancel-edit").style.display = "";
+  $("ed-type").value = typeLookup(v.type) ? v.type : GEO_DATA.featureTypes[0].id;
+  $("ed-newtype-fields").classList.remove("show");
+  $("ed-name").value = v.name; $("ed-kana").value = v.kana; $("ed-note").value = v.note;
+  $("ed-prefs").querySelectorAll("input").forEach(cb => {
+    cb.checked = v.prefs.includes(cb.value);
+    cb.parentElement.classList.toggle("on", cb.checked);
+  });
+  $("editor-overlay").scrollTo({ top: 0, behavior: "smooth" });
+}
+
+// ぜんぶの知識の一覧(種別ごと・タップで編集)
+function renderAllList() {
   const c = loadCustomData();
-  const list = $("ed-custom-list");
+  const list = $("ed-all-list");
   list.innerHTML = "";
-  if (c.features.length === 0) {
-    list.innerHTML = '<div class="ed-note-hint" style="padding:8px">まだありません。上のフォームから足せます。</div>';
-    return;
-  }
-  for (const f of c.features) {
-    // 種別は、正式マスタ+今作ったばかりのカスタム種別の両方から探す
-    const t = GEO_DATA.featureTypes.find(x => x.id === f.type) || c.types.find(x => x.id === f.type);
-    const item = document.createElement("div"); item.className = "ed-item";
-    const sw = document.createElement("span"); sw.className = "ei-sw";
-    if (t) { sw.style.background = t.color; sw.style.color = textColorFor(t.color); sw.textContent = t.icon; }
-    const txt = document.createElement("span");
-    const prefNames = (f.prefs || []).map(pid => { const p = prefById.get(pid); return p ? p.name.replace(/[都府県]$/, "") : "?"; }).join("・");
-    txt.innerHTML = `<b>${f.name}</b>(${t ? t.label : "?"})<br><span style="font-size:11px;color:#bcd">${prefNames}</span>`;
-    const del = document.createElement("button"); del.className = "ei-del"; del.textContent = "消す";
-    del.addEventListener("click", () => {
-      const cur = loadCustomData();
-      cur.features = cur.features.filter(x => x.id !== f.id);
-      saveCustom(cur); editorDirty = true; renderCustomList();
-    });
-    item.append(sw, txt, del); list.appendChild(item);
+  const all = effectiveList();
+  for (const t of [...GEO_DATA.featureTypes, ...c.types]) {
+    const items = all.filter(f => f.type === t.id);
+    if (items.length === 0) continue;
+    const head = document.createElement("div"); head.className = "ed-region-head";
+    head.textContent = t.label + "(" + items.length + ")";
+    list.appendChild(head);
+    for (const f of items) {
+      const item = document.createElement("div"); item.className = "ed-item";
+      const sw = document.createElement("span"); sw.className = "ei-sw";
+      sw.style.background = t.color; sw.style.color = textColorFor(t.color); sw.textContent = t.icon;
+      const txt = document.createElement("span"); txt.style.flex = "1"; txt.style.cursor = "pointer";
+      const prefNames = f.prefs.map(pid => { const p = prefById.get(pid); return p ? p.name.replace(/[都府県]$/, "") : "?"; }).join("・");
+      txt.innerHTML = `<b>${f.name}</b>${f.edited ? " ✎" : ""}<br><span style="font-size:11px;color:#bcd">${prefNames}</span>`;
+      txt.addEventListener("click", () => startEdit(f.id));
+      item.append(sw, txt);
+      if (f.custom) {
+        const del = document.createElement("button"); del.className = "ei-del"; del.textContent = "消す";
+        del.addEventListener("click", () => {
+          if (!confirm("「" + f.name + "」を消しますか?")) return;
+          const cur = loadCustomData();
+          cur.features = cur.features.filter(x => x.id !== f.id);
+          saveCustom(cur); editorDirty = true; if (editingId === f.id) resetFormToAdd(); renderAllList();
+        });
+        item.appendChild(del);
+      } else if (f.edited) {
+        const rst = document.createElement("button"); rst.className = "ei-del"; rst.textContent = "もどす";
+        rst.style.background = "#3d5378";
+        rst.addEventListener("click", () => {
+          const cur = loadCustomData();
+          delete cur.overrides[f.id];
+          saveCustom(cur); editorDirty = true; if (editingId === f.id) resetFormToAdd(); renderAllList();
+        });
+        item.appendChild(rst);
+      }
+      list.appendChild(item);
+    }
   }
 }
+
+$("ed-cancel-edit").addEventListener("click", resetFormToAdd);
 
 $("ed-add-btn").addEventListener("click", () => {
   const name = $("ed-name").value.trim();
@@ -1666,15 +1772,24 @@ $("ed-add-btn").addEventListener("click", () => {
       color: $("ed-nt-color").value || "#26c6da",
       factTemplate: "{pref}にある" });
   }
-  c.features.push({ id: "cf_" + Date.now().toString(36) + Math.floor(Math.random() * 100),
-    type: typeId, name, kana: kana || name, prefs, note });
-  saveCustom(c); editorDirty = true;
-  // フォームをリセット
-  $("ed-name").value = ""; $("ed-kana").value = ""; $("ed-note").value = "";
-  $("ed-nt-label").value = ""; $("ed-nt-icon").value = "";
-  $("ed-prefs").querySelectorAll("input:checked").forEach(cb => { cb.checked = false; cb.parentElement.classList.remove("on"); });
-  buildEditor();
-  alert("「" + name + "」を足しました!(とじると反映されます)");
+  if (editingId === null) {
+    // 新規追加
+    c.features.push({ id: "cf_" + Date.now().toString(36) + Math.floor(Math.random() * 100),
+      type: typeId, name, kana: kana || name, prefs, note });
+    saveCustom(c); editorDirty = true; resetFormToAdd(); renderAllList();
+    alert("「" + name + "」を足しました!(とじると反映されます)");
+  } else if (editingId.indexOf("cf_") === 0) {
+    // 自分で足した項目をなおす
+    const cf = c.features.find(x => x.id === editingId);
+    if (cf) { cf.type = typeId; cf.name = name; cf.kana = kana || name; cf.prefs = prefs; cf.note = note; }
+    saveCustom(c); editorDirty = true; resetFormToAdd(); renderAllList();
+    alert("なおしました!(とじると反映されます)");
+  } else {
+    // もともとある項目をなおす(オーバーライドとして保存)
+    c.overrides[editingId] = { type: typeId, name, kana: kana || name, prefs, note };
+    saveCustom(c); editorDirty = true; resetFormToAdd(); renderAllList();
+    alert("なおしました!(とじると反映されます)");
+  }
 });
 
 // バックアップ: 保存(ダウンロード)
